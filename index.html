@@ -70,6 +70,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 #prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:16px;padding:6px 14px;border-radius:8px;background:rgba(0,0,0,.6);
   border:1px solid #5a5;color:#cfc;display:none}
 #crouchTag{position:absolute;left:14px;top:84px;font-size:11px;color:#cfc;display:none}
+#floorTag{position:absolute;right:12px;top:166px;font-size:12px;color:#d8d2c0;text-shadow:0 0 4px #000}
+#ammo{position:absolute;left:14px;top:100px;font-size:13px;color:#ffd9a0;text-shadow:0 0 4px #000;display:none}
+#crosshair{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;display:none;
+  background:linear-gradient(#e9e2d0,#e9e2d0) center/2px 14px no-repeat,linear-gradient(#e9e2d0,#e9e2d0) center/14px 2px no-repeat;opacity:.75}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .25s}
+#shootBtn{right:30px;bottom:200px;display:none;background:rgba(140,90,30,.55)}
 @keyframes pulse{50%{opacity:.55}}
 @media (max-height:640px){
   .screen{padding:8px 16px}
@@ -96,27 +102,34 @@ button{font:inherit;color:inherit;cursor:pointer}
   <canvas id="mini"></canvas><div id="hint">M: map</div>
   <div id="status"></div>
   <div id="crouchTag">crouching (silent)</div>
+  <div id="floorTag"></div>
+  <div id="ammo"></div>
+  <div id="crosshair"></div>
   <div id="prompt"></div>
   <div id="msg"></div>
 </div>
+<div id="fade"></div>
 <div id="touch"><div id="stick"><div id="nub"></div></div><button id="runBtn">RUN</button>
-  <button class="tbtn" id="crouchBtn">CROUCH</button><button class="tbtn" id="lightBtn">LIGHT</button><button class="tbtn" id="hideBtn">HIDE</button>
+  <button class="tbtn" id="crouchBtn">CROUCH</button><button class="tbtn" id="lightBtn">LIGHT</button><button class="tbtn" id="hideBtn">USE</button>
+  <button class="tbtn" id="shootBtn">SHOOT</button>
   <div id="lookHint">drag here to look</div></div>
 <canvas id="scare"></canvas>
 
 <div class="screen" id="title">
   <h1>DAMIAN HORROR</h1>
   <canvas id="titleFace" width="300" height="300"></canvas>
-  <p>You're locked in the school after dark. <b>Damian</b> is in here with you.</p>
-  <p>Find the <b>5 keys</b> hidden around the school, then escape through the <b>EXIT</b> at the end of the main hallway.
+  <p>You woke up locked in <b>Damian's house</b>. He's in here with you.</p>
+  <p>Search the basement, ground floor and upstairs for the <b>5 keys</b>, then unlock the <b>front door</b>.
      If he catches you, you drop every key you're holding.</p>
-  <p class="small">He can only see what's in front of him, but he <b>hears</b> you run. Sneak, break his line of sight, and hide in the <b>lockers</b> with the green glow.</p>
+  <p class="small">He sees what's in front of him and <b>hears</b> you run, slam doors and drop things. Hide <b>under beds</b> and in <b>wardrobes</b> (they glow green).
+     Find the <b>blowgun</b> to knock him out for a while.</p>
   <div class="controls" id="ctrlDesk">
     <span><b>WASD</b> / arrows</span><span>move</span>
     <span><b>Mouse</b></span><span>look around (up and down too)</span>
     <span><b>Shift</b></span><span>run (loud, uses stamina)</span>
     <span><b>C</b> / Ctrl</span><span>crouch (slow but silent)</span>
-    <span><b>E</b></span><span>hide in a locker / get out</span>
+    <span><b>E</b></span><span>open / close doors, hide, get out</span>
+    <span><b>Click</b> / G</span><span>shoot a dart (once you find the blowgun)</span>
     <span><b>F</b></span><span>flashlight on / off</span>
     <span><b>M</b></span><span>show / hide map</span>
   </div>
@@ -124,26 +137,27 @@ button{font:inherit;color:inherit;cursor:pointer}
     <span><b>Left side</b></span><span>drag to move</span>
     <span><b>Right side</b></span><span>drag to look around</span>
     <span><b>RUN</b> / <b>CROUCH</b></span><span>hold to run, tap to crouch</span>
-    <span><b>HIDE</b></span><span>shows up next to a locker</span>
+    <span><b>USE</b></span><span>doors, beds, wardrobes</span>
+    <span><b>SHOOT</b></span><span>fire a dart</span>
     <span><b>Tip</b></span><span>turn your phone sideways</span>
   </div>
   <div class="warn">⚠ Loud jumpscares and screaming. Turn your volume down if you're wearing headphones.</div>
   <div class="vol">Volume <input type="range" class="volSlider" min="0" max="100" value="80"></div>
   <div class="vol">Look speed <input type="range" class="sensSlider" min="30" max="300" value="100"></div>
-  <button class="big" id="startBtn">ENTER THE SCHOOL</button>
+  <button class="big" id="startBtn">WAKE UP</button>
   <p class="small" id="loading">loading Damian...</p>
 </div>
 
 <div class="screen" id="dead" hidden>
   <h2>DAMIAN GOT YOU</h2>
-  <p>You dropped all your keys. They've been scattered around the school again.</p>
+  <p>You dropped all your keys. They've been scattered around the house again.</p>
   <p class="small" id="deadStats"></p>
   <button class="big" id="retryBtn" disabled>...</button>
 </div>
 
 <div class="screen" id="win" hidden>
   <h2 style="color:#5f5">YOU ESCAPED</h2>
-  <p>You got out of the school. Damian is still in there... for now.</p>
+  <p>You got out of Damian's house. He's still in there... for now.</p>
   <p class="small" id="winStats"></p>
   <button class="big" id="againBtn">PLAY AGAIN</button>
 </div>
@@ -189,7 +203,13 @@ const CONFIG = {
   memorySeconds: 1.2,      // after you break line of sight he still tracks you this long
   runNoise: 10,            // how far (in tiles, through hallways) running can be heard
   walkNoise: 3.5,
-  hideCheckSeconds: 20,    // hide longer than this and he comes to check your locker
+  hideCheckSeconds: 20,    // hide longer than this and he comes to check your hiding spot
+  // the blowgun
+  stunSeconds: 12,         // how long a dart knocks Damian out
+  gunDarts: 2,             // darts that come with the blowgun
+  dartPacks: 2,            // extra dart bundles hidden around the house
+  dartsPerPack: 2,
+  dartRange: 14,
 };
 
 const $ = id => document.getElementById(id);
@@ -200,102 +220,139 @@ function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 
 function loadImage(src) { return new Promise(res => { const im = new Image(); im.onload = () => res(im.naturalWidth ? im : null); im.onerror = () => res(null); im.src = src; }); }
 
 /* =====================================================================
-   THE SCHOOL MAP
-   0 = floor. 1 = wall (texture depends on which room you see it from),
-   6 = wooden bleachers/tables, 7 = vending machine, 8 = bookshelf, 9 = exit.
-   Regions: 1 hallway, 2 classroom, 3 bathroom, 4 gym, 5 cafeteria.
+   DAMIAN'S HOUSE: three floors, Granny style.
+   Legend:  #  wall          .  floor          ,  tiled floor (kitchen / bathroom)
+            D  door          X  front door (the exit, needs all 5 keys)
+            U  stairs up     d  stairs down
+            S  bookshelf     K  kitchen counter   F  fridge   O  boiler   x  crates
+            W  wardrobe (hide inside)   B  bed (hide under)   T  table   C  couch   b  bathtub
    ===================================================================== */
-const MW = 33, MH = 25;
-const M = [], R = [];
-for (let y = 0; y < MH; y++) { M.push(new Array(MW).fill(1)); R.push(new Array(MW).fill(0)); }
-function room(x0, y0, x1, y1, reg) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { M[y][x] = 0; R[y][x] = reg; } }
-function door(x, y) { M[y][x] = 0; R[y][x] = 1; }
-room(1, 12, 31, 13, 1);   // main hallway
-room(16, 1, 17, 23, 1);   // cross hallway
-room(1, 1, 6, 10, 2); room(8, 1, 14, 10, 2); room(19, 1, 24, 10, 2); room(26, 1, 31, 10, 2); // classrooms
-room(1, 15, 14, 23, 4);   // gym
-room(19, 15, 26, 23, 5);  // cafeteria
-room(28, 15, 31, 23, 3);  // bathroom
-[[3, 11], [11, 11], [22, 11], [28, 11], [15, 5], [18, 6], [7, 3], [25, 8], [4, 14], [10, 14], [15, 19], [23, 14], [18, 20], [29, 14], [27, 19]].forEach(([x, y]) => door(x, y));
-[[2, 22], [3, 22], [4, 22], [5, 22], [10, 22], [11, 22], [12, 22], [13, 22], [7, 18], [8, 18]].forEach(([x, y]) => M[y][x] = 6);   // gym bleachers
-[[21, 18], [22, 18], [24, 18], [21, 21], [22, 21], [24, 21]].forEach(([x, y]) => M[y][x] = 6); // lunch tables
-[[19, 15], [20, 15], [26, 23]].forEach(([x, y]) => M[y][x] = 7);                                // vending machines
-[[1, 1], [2, 1], [13, 1], [14, 1], [19, 1], [20, 1], [30, 1], [31, 1]].forEach(([x, y]) => M[y][x] = 8); // bookshelves
-[[4, 5], [11, 5], [21, 5], [28, 5]].forEach(([x, y]) => M[y][x] = 6);                           // teacher desks
-[[30, 17], [31, 17], [30, 20], [31, 20]].forEach(([x, y]) => M[y][x] = 1);                      // bathroom stalls
-M[12][0] = 9; M[13][0] = 9;                                                                       // EXIT doors
-const START = { x: 30.5, y: 12.95, a: Math.PI };
-const EXIT_CELL = { x: 1, y: 12 };
-// Hiding lockers: [locker wall cell x, y, the hallway cell you stand in to use it x, y]
-const HIDES = [[6, 11, 6, 12], [14, 11, 14, 12], [20, 11, 20, 12], [30, 11, 30, 12], [2, 14, 2, 13], [8, 14, 8, 13], [13, 14, 13, 13],
-  [21, 14, 21, 13], [26, 14, 26, 13], [31, 14, 31, 13], [15, 3, 16, 3], [18, 9, 17, 9], [15, 17, 16, 17], [18, 22, 17, 22]]
-  .map(([wx, wy, sx, sy]) => ({ wx, wy, sx, sy }));
-const HIDE_AT = new Set(HIDES.map(h => h.wx + ',' + h.wy));
-const isFloor = (x, y) => x >= 0 && y >= 0 && x < MW && y < MH && M[y][x] === 0;
+const FLOOR_PLANS = [
+  { name: 'Basement', ceil: [14, 16, 12], ground: [30, 32, 24], rows: [
+    '######################',
+    '#U.....#......x.....x#',
+    '#......#.............#',
+    '#..O...D......xx.....#',
+    '#......#.............#',
+    '####D###..W..........#',
+    '#......#######D#######',
+    '#..x...#.............#',
+    '#......D.....x.......#',
+    '#..x...#.............#',
+    '#W.....#......xx.....#',
+    '#......#.............#',
+    '#......#.............#',
+    '###D########D#########',
+    '#....................#',
+    '######################'] },
+  { name: 'Ground floor', ceil: [24, 20, 16], ground: [54, 38, 24], rows: [
+    '######################',
+    '#,,,,,#.....#........#',
+    '#,K,F,#..S..#..C..C..#',
+    '#,,,,,#.....D........#',
+    '#,,T,,D.....#...T....#',
+    '#,,,,,#.....#........#',
+    '###D#####D#####D######',
+    '#....................X',
+    '#U...................#',
+    '####D######D#####D####',
+    '#......#.....#,,,,,,,#',
+    '#..T...#..W..#,b,,,,,#',
+    '#......#.....#,,,,,,,#',
+    '#..T...D.....#,,,,,,,#',
+    '#d.....#.....#,,,,,,,#',
+    '######################'] },
+  { name: 'Upstairs', ceil: [26, 20, 22], ground: [58, 42, 30], rows: [
+    '######################',
+    '#.....#......#.......#',
+    '#.B...#..B...#..B....#',
+    '#.....#......#.......#',
+    '#W....#W.....#......W#',
+    '#.....#......#.......#',
+    '###D######D#######D###',
+    '#d...................#',
+    '#....................#',
+    '####D#########D#######',
+    '#,,,,,,,,#...........#',
+    '#,b,,,,,,#....S...S..#',
+    '#,,,,,,,,#...........#',
+    '#,,,,,,,,#....W......#',
+    '#,,,,,,,,#...........#',
+    '######################'] },
+];
+const MW = 22, MH = 16, N = MW * MH, NF = FLOOR_PLANS.length;
+const WALL_OF = { '#': 1, D: 10, X: 9, S: 8, K: 17, F: 13, O: 14, x: 15, W: 16 };
+const PROP_OF = { T: 'table', C: 'couch', B: 'bed', b: 'tub' };
+const DIRS = [[1, 0], [0, 1], [0, -1], [-1, 0]];
+const key3 = (f, x, y) => f + ',' + x + ',' + y;
+const FL = FLOOR_PLANS.map(p => Object.assign({}, p, { M: [], R: [] }));
+const PROPS = [], PROP_AT = new Set(), STAIR_CELLS = [], DOOR_OPEN = new Set();
+FL.forEach((fl, f) => fl.rows.forEach((row, y) => {
+  fl.M.push([]); fl.R.push([]);
+  for (let x = 0; x < MW; x++) {
+    const ch = row[x] || '#';
+    fl.M[y].push(WALL_OF[ch] || 0);
+    fl.R[y].push(ch === ',' ? 2 : 1);
+    if (PROP_OF[ch]) { PROPS.push({ f, x, y, type: PROP_OF[ch] }); PROP_AT.add(key3(f, x, y)); }
+    if (ch === 'U' || ch === 'd') STAIR_CELLS.push({ f, x, y, dir: ch === 'U' ? 'up' : 'down' });
+  }
+}));
+const inB = (x, y) => x >= 0 && y >= 0 && x < MW && y < MH;
+const cellM = (f, x, y) => inB(x, y) ? FL[f].M[y][x] : 1;
+const isDoorOpen = (f, x, y) => DOOR_OPEN.has(key3(f, x, y));
+const STAIR_AT = new Set(STAIR_CELLS.map(s => key3(s.f, s.x, s.y)));
+// plain floor you can stand on (not furniture, not the stairs)
+const openFloor = (f, x, y) => cellM(f, x, y) === 0 && !PROP_AT.has(key3(f, x, y)) && !STAIR_AT.has(key3(f, x, y));
+const passPlayer = (f, x, y) => { const m = cellM(f, x, y); return (m === 0 || (m === 10 && isDoorOpen(f, x, y))) && !PROP_AT.has(key3(f, x, y)); };
+const passDamian = (f, x, y) => { const m = cellM(f, x, y); return (m === 0 || m === 10) && !PROP_AT.has(key3(f, x, y)); };   // he opens doors
+const passSight = (f, x, y) => { const m = cellM(f, x, y); return m === 0 || (m === 10 && isDoorOpen(f, x, y)); };           // furniture is low, doors block
+// Stairs: walking onto a staircase takes you to the matching one on the next floor.
+const STAIRS = new Map(), STAIR_WALL = new Map();
+STAIR_CELLS.forEach(s => {
+  const other = STAIR_CELLS.find(o => o.f === s.f + (s.dir === 'up' ? 1 : -1) && o.dir !== s.dir);
+  if (!other) return;
+  const a = DIRS.map(([dx, dy]) => ({ x: other.x + dx, y: other.y + dy })).find(c => openFloor(other.f, c.x, c.y));
+  STAIRS.set(key3(s.f, s.x, s.y), { dir: s.dir, to: other, arrive: a });
+  DIRS.forEach(([dx, dy]) => { if (cellM(s.f, s.x + dx, s.y + dy) === 1) STAIR_WALL.set(key3(s.f, s.x + dx, s.y + dy), s.dir); });
+});
+// Hiding spots: inside wardrobes and under beds. You stand next to them and press E.
+const HIDES = [];
+function addHide(f, x, y, kind) {
+  const s = DIRS.map(([dx, dy]) => ({ x: x + dx, y: y + dy })).find(c => openFloor(f, c.x, c.y));
+  if (s) HIDES.push({ f, wx: x, wy: y, sx: s.x, sy: s.y, kind });
+}
+FL.forEach((fl, f) => fl.M.forEach((row, y) => row.forEach((m, x) => { if (m === 16) addHide(f, x, y, 'wardrobe'); })));
+PROPS.filter(p => p.type === 'bed').forEach(p => addHide(p.f, p.x, p.y, 'bed'));
+const START = { f: 2, x: 10.5, y: 4.5, a: Math.PI / 2 };   // you wake up in a bedroom upstairs
+const EXIT = { f: 1, x: 21, y: 7 };                        // the front door, ground floor
 
-function bfs(sx, sy) {
-  const dist = new Int16Array(MW * MH).fill(-1), prev = new Int16Array(MW * MH).fill(-1), q = [sx + sy * MW];
-  dist[q[0]] = 0;
+// Pathfinding through the whole house: every cell on every floor is a node; stairs link floors.
+const node = (f, x, y) => f * N + y * MW + x;
+const nodeF = n => (n / N) | 0, nodeX = n => n % MW, nodeY = n => ((n % N) / MW) | 0;
+function bfs3(start) {
+  const dist = new Int16Array(NF * N).fill(-1), prev = new Int32Array(NF * N).fill(-1), q = [start];
+  dist[start] = 0;
   for (let i = 0; i < q.length; i++) {
-    const c = q[i], cx = c % MW, cy = (c / MW) | 0;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = cx + dx, ny = cy + dy, n = nx + ny * MW;
-      if (isFloor(nx, ny) && dist[n] < 0) { dist[n] = dist[c] + 1; prev[n] = c; q.push(n); }
-    }
+    const c = q[i], f = nodeF(c), cx = nodeX(c), cy = nodeY(c);
+    const visit = n => { if (dist[n] < 0) { dist[n] = dist[c] + 1; prev[n] = c; q.push(n); } };
+    for (const [dx, dy] of DIRS) if (passDamian(f, cx + dx, cy + dy)) visit(node(f, cx + dx, cy + dy));
+    const st = STAIRS.get(key3(f, cx, cy)); if (st) visit(node(st.to.f, st.to.x, st.to.y));
   }
   return { dist, prev };
 }
-// Path of cells from (fx,fy) to (tx,ty), using a BFS started at the target.
-function pathFrom(field, fx, fy) {
-  const out = []; let c = fx + fy * MW;
+function pathFrom(field, start) {
+  const out = []; let c = start;
   if (field.dist[c] < 0) return out;
-  while (c >= 0 && out.length < 400) { out.push(c); c = field.prev[c]; }
+  while (c >= 0 && out.length < 800) { out.push(c); c = field.prev[c]; }
   return out;
 }
 
 /* =====================================================================
-   WALL TEXTURES (drawn in code, 64x64)
+   TEXTURES (drawn in code, 64x64)
    ===================================================================== */
 function tex(fn, seed) { const c = mk(64), x = c.getContext('2d'); fn(x, rng(seed || 1)); return c; }
 function grime(x, r, n, col) { for (let i = 0; i < n; i++) { x.fillStyle = col || `rgba(0,0,0,${.08 + r() * .25})`; x.fillRect(r() * 64, r() * 64, 1 + r() * 3, 1 + r() * 3); } for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(20,10,0,.12)'; x.fillRect(r() * 64, 0, 1 + r() * 2, 30 + r() * 34); } }
 function scrawl(x, text, col, size, y, rot) { x.save(); x.translate(32, y); x.rotate(rot || 0); x.fillStyle = col; x.font = `bold ${size}px 'Courier New', monospace`; x.textAlign = 'center'; x.fillText(text, 0, 0); x.restore(); }
-function lockers(x, r, graffiti) {
-  x.fillStyle = '#243c41'; x.fillRect(0, 0, 64, 64);
-  for (let i = 0; i < 2; i++) {
-    const lx = i * 32; x.fillStyle = '#35565d'; x.fillRect(lx + 1, 2, 30, 55);
-    x.fillStyle = '#172629'; x.fillRect(lx, 0, 1, 64);
-    for (let v = 0; v < 4; v++) { x.fillStyle = '#16262a'; x.fillRect(lx + 7, 7 + v * 3, 17, 1.5); }
-    x.fillStyle = '#9fb0b0'; x.fillRect(lx + 24, 28, 3, 9);
-    x.fillStyle = '#16262a'; x.fillRect(lx + 7, 44, 17, 1);
-  }
-  x.fillStyle = '#121212'; x.fillRect(0, 57, 64, 7);
-  grime(x, r, 50);
-  if (graffiti) scrawl(x, graffiti, 'rgba(160,12,12,.9)', 15, 47, -.12);
-}
-function classroom(x, r, kind) {
-  x.fillStyle = '#7a705a'; x.fillRect(0, 0, 64, 64);
-  x.fillStyle = '#4a3320'; x.fillRect(0, 54, 64, 10);
-  if (kind === 'board') {
-    x.fillStyle = '#4a3320'; x.fillRect(0, 12, 64, 34);
-    x.fillStyle = '#1f3527'; x.fillRect(0, 14, 64, 30);
-    x.strokeStyle = 'rgba(230,230,220,.6)'; x.lineWidth = 1;
-    for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(4 + r() * 10, 20 + i * 6); x.lineTo(30 + r() * 28, 20 + i * 6 + r() * 2); x.stroke(); }
-  } else if (kind === 'damian') {
-    x.fillStyle = '#4a3320'; x.fillRect(0, 12, 64, 34);
-    x.fillStyle = '#1f3527'; x.fillRect(0, 14, 64, 30);
-    scrawl(x, 'DAMIAN', 'rgba(235,235,225,.8)', 12, 27, -.04);
-    scrawl(x, 'IS HERE', 'rgba(235,235,225,.7)', 10, 39, .05);
-  } else if (kind === 'poster') {
-    x.fillStyle = '#c9b98a'; x.fillRect(16, 10, 30, 38);
-    x.fillStyle = '#7a2d22'; x.fillRect(19, 14, 24, 14);
-    x.fillStyle = '#333'; for (let i = 0; i < 4; i++) x.fillRect(19, 32 + i * 4, 24 - r() * 10, 2);
-  } else if (kind === 'clock') {
-    x.fillStyle = '#ddd8c8'; x.beginPath(); x.arc(32, 26, 11, 0, TAU); x.fill();
-    x.strokeStyle = '#222'; x.lineWidth = 2; x.stroke();
-    x.beginPath(); x.moveTo(32, 26); x.lineTo(32, 18); x.moveTo(32, 26); x.lineTo(38, 29); x.stroke();
-  }
-  grime(x, r, 40);
-}
 function tiles(x, r, words) {
   x.fillStyle = '#b8b8ae'; x.fillRect(0, 0, 64, 64);
   x.fillStyle = '#7f7f76';
@@ -303,78 +360,131 @@ function tiles(x, r, words) {
   grime(x, r, 70, 'rgba(60,70,30,.25)');
   if (words) scrawl(x, words, 'rgba(140,10,10,.85)', 13, 36, .08);
 }
-function brick(x, r, words) {
-  x.fillStyle = '#5f5c50'; x.fillRect(0, 0, 64, 64);
-  for (let row = 0; row < 8; row++) for (let col = -1; col < 4; col++) {
-    const bx = col * 16 + (row % 2) * 8, by = row * 8;
-    x.fillStyle = `rgb(${130 + r() * 14},${126 + r() * 12},${108 + r() * 10})`; x.fillRect(bx + 1, by + 1, 14, 6);
-  }
-  x.fillStyle = 'rgba(30,50,120,.85)'; x.fillRect(0, 28, 64, 9);
-  grime(x, r, 40);
-  if (words) scrawl(x, words, 'rgba(150,10,10,.85)', 14, 52, -.06);
+// old wallpaper with a wooden wainscot along the bottom
+function paper(x, r, base, stripe, wains, kind) {
+  x.fillStyle = base; x.fillRect(0, 0, 64, 64);
+  for (let i = 0; i < 64; i += 8) { x.fillStyle = stripe; x.fillRect(i, 0, 3, 44); }
+  for (let i = 0; i < 50; i++) { x.fillStyle = 'rgba(255,240,220,.05)'; x.fillRect(r() * 64, r() * 44, 2, 2); }
+  x.fillStyle = wains; x.fillRect(0, 44, 64, 20);
+  x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(0, 44, 64, 2); x.fillRect(0, 62, 64, 2);
+  for (let i = 0; i < 64; i += 16) { x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(i, 46, 1, 16); }
+  for (let i = 0; i < 4; i++) { x.fillStyle = 'rgba(40,25,10,.2)'; x.beginPath(); x.ellipse(r() * 64, r() * 40, 3 + r() * 8, 2 + r() * 6, 0, 0, TAU); x.fill(); }
+  if (kind === 'frame') { x.fillStyle = '#3a2410'; x.fillRect(18, 8, 28, 30); x.fillStyle = '#0d0b09'; x.fillRect(21, 11, 22, 24); }
+  if (kind === 'crack') { x.strokeStyle = 'rgba(0,0,0,.6)'; x.lineWidth = 1; x.beginPath(); x.moveTo(30, 0); x.lineTo(34, 12); x.lineTo(28, 22); x.lineTo(36, 34); x.lineTo(31, 44); x.stroke(); }
+  if (kind === 'getout') scrawl(x, 'GET OUT', 'rgba(140,10,10,.85)', 12, 28, -.1);
+  if (kind === 'behind') { scrawl(x, 'HE IS', 'rgba(140,10,10,.85)', 11, 20, .06); scrawl(x, 'BEHIND YOU', 'rgba(140,10,10,.85)', 9, 33, -.05); }
+  if (kind === 'clock') { x.fillStyle = '#d8d0b8'; x.beginPath(); x.arc(32, 22, 10, 0, TAU); x.fill(); x.strokeStyle = '#222'; x.lineWidth = 2; x.stroke(); x.beginPath(); x.moveTo(32, 22); x.lineTo(32, 15); x.moveTo(32, 22); x.lineTo(37, 25); x.stroke(); }
+  if (kind === 'window') { x.fillStyle = '#05070a'; x.fillRect(14, 6, 36, 32); x.fillStyle = '#6a4a2a'; [[10, 10, -.2], [10, 22, .15], [10, 31, -.1]].forEach(([px, py, rot]) => { x.save(); x.translate(32, py); x.rotate(rot); x.fillRect(-24, -3, 48, 6); x.restore(); }); }
+  if (kind === 'scratch') { x.strokeStyle = 'rgba(20,10,5,.7)'; x.lineWidth = 1.5; for (let i = 0; i < 4; i++) { x.beginPath(); x.moveTo(20 + i * 6, 10); x.lineTo(26 + i * 6, 40); x.stroke(); } }
+  grime(x, r, 30);
 }
-function cafe(x, r, menu) {
-  x.fillStyle = '#6a6554'; x.fillRect(0, 0, 64, 36);
-  for (let ty = 36; ty < 64; ty += 7) for (let tx = 0; tx < 64; tx += 7) { x.fillStyle = ((tx + ty) / 7) % 2 ? '#5b2626' : '#c4bca4'; x.fillRect(tx, ty, 7, 7); }
-  if (menu) { x.fillStyle = '#1a1a1a'; x.fillRect(10, 6, 44, 24); x.fillStyle = '#e9e2a0'; x.font = 'bold 7px monospace'; x.fillText('LUNCH', 22, 15); x.fillText('MENU', 24, 25); }
-  grime(x, r, 45);
+// damp stone blocks for the basement
+function stone(x, r, words) {
+  x.fillStyle = '#1e1e1a'; x.fillRect(0, 0, 64, 64);
+  for (let y = 0; y < 64; y += 11) { let bx = -r() * 10; while (bx < 64) { const w = 12 + r() * 10, v = 52 + r() * 22; x.fillStyle = `rgb(${v},${v},${v - 6})`; x.fillRect(bx + 1, y + 1, w - 2, 9); bx += w; } }
+  for (let i = 0; i < 6; i++) { x.fillStyle = 'rgba(40,70,30,.25)'; x.beginPath(); x.ellipse(r() * 64, 40 + r() * 24, 4 + r() * 10, 2 + r() * 5, 0, 0, TAU); x.fill(); }
+  grime(x, r, 50);
+  if (words) scrawl(x, words, 'rgba(150,10,10,.85)', 14, 36, -.06);
 }
 const TEX = {};
 function buildTextures() {
-  TEX.region = {
-    1: [tex((x, r) => lockers(x, r), 2), tex((x, r) => lockers(x, r), 3), tex((x, r) => lockers(x, r), 4), tex((x, r) => lockers(x, r, 'RUN'), 5), tex((x, r) => lockers(x, r), 6), tex((x, r) => lockers(x, r, 'HE SEES'), 7)],
-    2: [tex((x, r) => classroom(x, r, 'board'), 8), tex((x, r) => classroom(x, r, 'poster'), 9), tex((x, r) => classroom(x, r, 'plain'), 10), tex((x, r) => classroom(x, r, 'damian'), 11), tex((x, r) => classroom(x, r, 'clock'), 12)],
-    3: [tex((x, r) => tiles(x, r), 13), tex((x, r) => tiles(x, r), 14), tex((x, r) => tiles(x, r, 'HELP'), 15)],
-    4: [tex((x, r) => brick(x, r), 16), tex((x, r) => brick(x, r), 17), tex((x, r) => brick(x, r, 'NO EXIT'), 18)],
-    5: [tex((x, r) => cafe(x, r), 19), tex((x, r) => cafe(x, r, true), 20), tex((x, r) => cafe(x, r), 21)],
+  const ground = k => (x, r) => paper(x, r, '#4f5e40', '#465435', '#3d2817', k);
+  const upper = k => (x, r) => paper(x, r, '#6e4d52', '#634348', '#35241a', k);
+  TEX.walls = {
+    0: [tex((x, r) => stone(x, r), 40), tex((x, r) => stone(x, r), 41), tex((x, r) => stone(x, r), 42), tex((x, r) => stone(x, r, 'HELP'), 43), tex((x, r) => stone(x, r), 44)],
+    1: [tex(ground('plain'), 50), tex(ground('frame'), 51), tex(ground('plain'), 52), tex(ground('window'), 53), tex(ground('clock'), 54), tex(ground('crack'), 55), tex(ground('getout'), 56), tex(ground('plain'), 57)],
+    2: [tex(upper('plain'), 60), tex(upper('frame'), 61), tex(upper('scratch'), 62), tex(upper('window'), 63), tex(upper('behind'), 64), tex(upper('plain'), 65), tex(upper('crack'), 66)],
   };
-  TEX[6] = tex((x, r) => { x.fillStyle = '#2a1a0c'; x.fillRect(0, 0, 64, 64); for (let i = 0; i < 8; i++) { x.fillStyle = `rgb(${100 + r() * 20},${68 + r() * 12},${36 + r() * 10})`; x.fillRect(0, i * 8 + 1, 64, 6); } grime(x, r, 30); }, 22);
-  TEX[7] = tex((x, r) => {
-    x.fillStyle = '#6e1217'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#9fd0ff'; x.fillRect(6, 6, 36, 40);
-    const cols = ['#e33', '#3a3', '#36e', '#ee3', '#e7e'];
-    for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 4; xx++) { x.fillStyle = cols[(xx + yy) % 5]; x.fillRect(9 + xx * 8, 9 + yy * 9, 5, 6); }
-    x.fillStyle = '#222'; x.fillRect(46, 10, 12, 20); x.fillRect(8, 50, 32, 8); grime(x, r, 25);
-  }, 23);
+  TEX.tile = [tex((x, r) => tiles(x, r), 13), tex((x, r) => tiles(x, r), 14), tex((x, r) => tiles(x, r, 'HELP ME'), 15)];
+  TEX.door = tex((x, r) => {
+    x.fillStyle = '#20150c'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#5b3a20'; x.fillRect(8, 2, 48, 62);
+    x.strokeStyle = '#3c2512'; x.lineWidth = 2;[[14, 7, 16, 22], [34, 7, 16, 22], [14, 35, 16, 24], [34, 35, 16, 24]].forEach(([a, b, c, d]) => x.strokeRect(a, b, c, d));
+    x.fillStyle = '#c9a227'; x.beginPath(); x.arc(50, 34, 2.6, 0, TAU); x.fill(); grime(x, r, 25);
+  }, 30);
+  const steps = dir => tex((x, r) => {
+    x.fillStyle = '#0b0806'; x.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 7; i++) {
+      const y = dir === 'up' ? 60 - i * 8 : 18 + i * 6, w = 64 - i * (dir === 'up' ? 6 : 7), sh = 70 - i * 8;
+      x.fillStyle = `rgb(${sh},${sh * .7 | 0},${sh * .45 | 0})`; x.fillRect((64 - w) / 2, y, w, dir === 'up' ? 5 : 4);
+    }
+    x.fillStyle = 'rgba(0,0,0,.6)'; x.fillRect(0, 0, 64, 10);
+    x.fillStyle = '#d8d2c0'; x.font = 'bold 9px monospace'; x.textAlign = 'center'; x.fillText(dir === 'up' ? '▲ UP' : '▼ DOWN', 32, 8);
+  }, dir === 'up' ? 31 : 32);
+  TEX.stairsUp = steps('up'); TEX.stairsDown = steps('down');
   TEX[8] = tex((x, r) => {
     x.fillStyle = '#3a2412'; x.fillRect(0, 0, 64, 64);
-    for (let s = 0; s < 4; s++) { let bx = 3; while (bx < 60) { const w = 3 + r() * 4; x.fillStyle = `hsl(${r() * 360},40%,${25 + r() * 20}%)`; x.fillRect(bx, s * 16 + 3, w, 12); bx += w + 1; } x.fillStyle = '#24160a'; x.fillRect(0, s * 16 + 15, 64, 2); }
-  }, 24);
-  const exitTex = unlocked => tex((x, r) => {
-    x.fillStyle = '#2a2a2a'; x.fillRect(0, 0, 64, 64);
-    x.fillStyle = unlocked ? '#1f5a1f' : '#5a1414'; x.fillRect(4, 14, 27, 50); x.fillRect(33, 14, 27, 50);
-    x.fillStyle = '#aaa'; x.fillRect(6, 36, 23, 3); x.fillRect(35, 36, 23, 3);
-    x.fillStyle = '#111'; x.fillRect(16, 1, 32, 11);
-    x.fillStyle = unlocked ? '#5f5' : '#f33'; x.font = 'bold 10px monospace'; x.textAlign = 'center'; x.fillText('EXIT', 32, 10);
+    for (let s = 0; s < 4; s++) { let bx = 3; while (bx < 60) { const w = 3 + r() * 4; x.fillStyle = `hsl(${r() * 360},35%,${22 + r() * 18}%)`; x.fillRect(bx, s * 16 + 3, w, 12); bx += w + 1; } x.fillStyle = '#24160a'; x.fillRect(0, s * 16 + 15, 64, 2); }
     grime(x, r, 20);
+  }, 24);
+  TEX[17] = tex((x, r) => {   // kitchen counter + stove
+    tiles(x, r); x.fillStyle = '#6d6a62'; x.fillRect(0, 26, 64, 5);
+    x.fillStyle = '#5a3a20'; x.fillRect(0, 31, 64, 33); x.strokeStyle = '#3c2512'; x.lineWidth = 1.5; x.strokeRect(3, 34, 27, 27); x.strokeRect(34, 34, 27, 27);
+    x.fillStyle = '#bbb'; x.fillRect(24, 44, 3, 6); x.fillRect(37, 44, 3, 6);
+    x.fillStyle = '#222'; [12, 24, 40, 52].forEach(k => { x.beginPath(); x.arc(k, 28, 2, 0, TAU); x.fill(); });
+  }, 33);
+  TEX[13] = tex((x, r) => {   // fridge
+    x.fillStyle = '#2a2622'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#cfcabb'; x.fillRect(8, 2, 48, 62);
+    x.fillStyle = '#a8a394'; x.fillRect(8, 22, 48, 2); x.fillStyle = '#888'; x.fillRect(48, 8, 3, 10); x.fillRect(48, 28, 3, 16);
+    ['#c33', '#3a3', '#36c', '#cc3'].forEach((c, i) => { x.fillStyle = c; x.fillRect(14 + i * 7, 30 + (i % 2) * 6, 5, 5); });
+    grime(x, r, 40);
+  }, 34);
+  TEX[14] = tex((x, r) => {   // old boiler
+    x.fillStyle = '#1a1a17'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#5e4a30'; x.fillRect(10, 6, 44, 58);
+    for (let i = 0; i < 6; i++) { x.fillStyle = '#2c2216'; x.beginPath(); x.arc(14, 10 + i * 9, 1.5, 0, TAU); x.arc(50, 10 + i * 9, 1.5, 0, TAU); x.fill(); }
+    x.fillStyle = '#444'; x.fillRect(28, 0, 8, 8); x.fillStyle = '#ddd'; x.beginPath(); x.arc(32, 28, 7, 0, TAU); x.fill();
+    x.strokeStyle = '#a00'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(32, 28); x.lineTo(36, 24); x.stroke();
+    grime(x, r, 60, 'rgba(120,60,20,.3)');
+  }, 35);
+  TEX[15] = tex((x, r) => {   // stacked crates
+    x.fillStyle = '#100c08'; x.fillRect(0, 0, 64, 64);
+    [[2, 30, 60, 34], [8, 2, 48, 28]].forEach(([a, b, c, d]) => {
+      x.fillStyle = '#7a5a32'; x.fillRect(a, b, c, d); x.strokeStyle = '#4a3418'; x.lineWidth = 2; x.strokeRect(a + 1, b + 1, c - 2, d - 2);
+      x.beginPath(); x.moveTo(a + 2, b + 2); x.lineTo(a + c - 2, b + d - 2); x.moveTo(a + c - 2, b + 2); x.lineTo(a + 2, b + d - 2); x.stroke();
+    });
+    grime(x, r, 40);
+  }, 36);
+  TEX[16] = tex((x, r) => {   // wardrobe you can hide in: door open a crack, faint green glow
+    x.fillStyle = '#1a1009'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#4a2f18'; x.fillRect(6, 4, 52, 60);
+    x.fillStyle = '#3a2312'; x.fillRect(4, 0, 56, 6);
+    x.strokeStyle = '#2e1c0e'; x.lineWidth = 2; x.strokeRect(10, 10, 20, 50); x.strokeRect(34, 10, 20, 50);
+    x.fillStyle = '#050403'; x.fillRect(31, 8, 3, 54); x.fillStyle = 'rgba(90,255,120,.55)'; x.fillRect(32, 8, 1, 54);
+    x.fillStyle = '#c9a227'; x.fillRect(27, 32, 2, 4); x.fillRect(36, 32, 2, 4); grime(x, r, 30);
+  }, 37);
+  const frontDoor = open => tex((x, r) => {   // the front door with 5 locks
+    x.fillStyle = '#120d09'; x.fillRect(0, 0, 64, 64); x.fillStyle = open ? '#4e5a2a' : '#4a2a18'; x.fillRect(8, 2, 48, 62);
+    x.strokeStyle = 'rgba(0,0,0,.4)'; x.lineWidth = 2; x.strokeRect(13, 6, 38, 54);
+    for (let i = 0; i < 5; i++) {
+      const y = 9 + i * 10; x.fillStyle = open ? '#5f5' : '#888'; x.fillRect(42, y + 3, 7, 5);
+      x.strokeStyle = open ? '#5f5' : '#aaa'; x.lineWidth = 1.5; x.beginPath(); x.arc(45.5, y + 3, 2.5, Math.PI, open ? Math.PI * 1.6 : 0); x.stroke();
+    }
+    x.fillStyle = '#c9a227'; x.beginPath(); x.arc(18, 34, 2.5, 0, TAU); x.fill(); grime(x, r, 20);
   }, 25);
-  TEX.exitLocked = exitTex(false); TEX.exitOpen = exitTex(true);
-  // a big locker you can climb into: door open a crack, faint green glow so you can spot it in the dark
-  TEX.hide = tex((x, r) => {
-    x.fillStyle = '#1b2d31'; x.fillRect(0, 0, 64, 64);
-    x.fillStyle = '#35565d'; x.fillRect(8, 2, 48, 55);
-    x.fillStyle = '#050808'; x.fillRect(50, 4, 5, 52);
-    x.fillStyle = 'rgba(90,255,120,.55)'; x.fillRect(49, 4, 1, 52);
-    for (let v = 0; v < 6; v++) { x.fillStyle = '#16262a'; x.fillRect(16, 8 + v * 3, 26, 1.5); }
-    x.fillStyle = '#9fb0b0'; x.fillRect(44, 28, 3, 9);
-    x.strokeStyle = 'rgba(90,255,120,.35)'; x.lineWidth = 1; x.strokeRect(8.5, 2.5, 47, 54);
-    x.fillStyle = '#121212'; x.fillRect(0, 57, 64, 7); grime(x, r, 40);
-  }, 26);
+  TEX.exitLocked = frontDoor(false); TEX.exitOpen = frontDoor(true);
 }
-function wallTexture(type, mx, my, fromX, fromY) {
+// Framed photos of Damian on the walls (made once his pictures have loaded).
+function addPortraits() {
+  [1, 2].forEach(f => {
+    const base = TEX.walls[f][1], c = mk(64), x = c.getContext('2d'); x.drawImage(base, 0, 0);
+    const head = HEADS[(f * 2) % HEADS.length]; x.filter = 'sepia(.6) brightness(.7) contrast(1.2)';
+    x.drawImage(head.canvas, 21, 11, 22, 24); x.filter = 'none';
+    TEX.walls[f][1] = c;
+  });
+}
+function wallTexture(f, type, mx, my, fromX, fromY) {
   if (type === 9) return keys.held >= CONFIG.keysNeeded ? TEX.exitOpen : TEX.exitLocked;
+  if (type === 10) return TEX.door;
   if (type !== 1) return TEX[type];
-  if (HIDE_AT.has(mx + ',' + my)) return TEX.hide;
-  const set = TEX.region[R[fromY] && R[fromY][fromX] || 1] || TEX.region[1];
-  return set[((mx * 7349 + my * 1931) >>> 0) % set.length];
+  const sw = STAIR_WALL.get(key3(f, mx, my)); if (sw) return sw === 'up' ? TEX.stairsUp : TEX.stairsDown;
+  const set = inB(fromX, fromY) && FL[f].R[fromY][fromX] === 2 ? TEX.tile : TEX.walls[f];
+  return set[((mx * 7349 + my * 1931 + f * 977) >>> 0) % set.length];
 }
 
 /* =====================================================================
-   DAMIAN HEADS + KEY SPRITES
-   Each sprite is pre-rendered at several brightness levels so it can be
-   shaded by the flashlight (his glowing eyes stay bright in the dark).
+   SPRITES: Damian's head, furniture, keys, the blowgun and darts.
+   Each is pre-rendered at several brightness levels for the flashlight.
    ===================================================================== */
 const LEVELS = 10;
-let HEADS = [], KEY_SPRITE = null, headIndex = 0;
+let HEADS = [], KEY_SPRITE = null, headIndex = 0, PROP_SPR = {}, GUN_SPR = null, DARTS_SPR = null, DART_SPR = null;
 function makeHead(img, cfg, S) {
   const w = img.naturalWidth, h = img.naturalHeight;
   const lx = cfg.leftEye[0] * w, ly = cfg.leftEye[1] * h, rx = cfg.rightEye[0] * w, ry = cfg.rightEye[1] * h;
@@ -400,26 +510,63 @@ function glowEyes(x, head, scale, strength) {
   });
   x.restore();
 }
-function headLevels(head) {
+function headLevels(head, glow) {
   const S = head.canvas.width, levels = [];
   for (let i = 0; i < LEVELS; i++) {
     const c = mk(S), x = c.getContext('2d'), b = .07 + .93 * (i / (LEVELS - 1));
-    x.filter = `brightness(${b})`; x.drawImage(head.canvas, 0, 0); x.filter = 'none';
-    glowEyes(x, head, 1, .95);
+    x.filter = `brightness(${glow ? b : b * .55}) ${glow ? '' : 'grayscale(.6)'}`; x.drawImage(head.canvas, 0, 0); x.filter = 'none';
+    if (glow) glowEyes(x, head, 1, .95);
     levels.push(c);
   }
   return levels;
 }
-function keyLevels() {
-  const base = mk(64), x = base.getContext('2d');
-  const g = x.createRadialGradient(32, 32, 2, 32, 32, 30); g.addColorStop(0, 'rgba(255,220,90,.55)'); g.addColorStop(1, 'rgba(255,200,60,0)');
-  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
-  const gold = x.createLinearGradient(0, 14, 0, 50); gold.addColorStop(0, '#fff3a0'); gold.addColorStop(1, '#c98a00');
-  x.strokeStyle = gold; x.lineWidth = 5; x.beginPath(); x.arc(32, 20, 8, 0, TAU); x.stroke();
-  x.fillStyle = gold; x.fillRect(29.5, 27, 5, 24); x.fillRect(34, 41, 7, 4); x.fillRect(34, 47, 5, 4);
+function spriteLevels(draw, minB) {
+  const base = mk(64); draw(base.getContext('2d'));
   const levels = [];
-  for (let i = 0; i < LEVELS; i++) { const c = mk(64), cx = c.getContext('2d'); cx.filter = `brightness(${.45 + .55 * i / (LEVELS - 1)})`; cx.drawImage(base, 0, 0); levels.push(c); }
+  for (let i = 0; i < LEVELS; i++) { const c = mk(64), x = c.getContext('2d'); x.filter = `brightness(${(minB || .05) + (1 - (minB || .05)) * i / (LEVELS - 1)})`; x.drawImage(base, 0, 0); levels.push(c); }
   return { base, levels };
+}
+function glowHalo(x, col) { const g = x.createRadialGradient(32, 32, 2, 32, 32, 30); g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }
+function buildSprites() {
+  KEY_SPRITE = spriteLevels(x => {
+    glowHalo(x, 'rgba(255,220,90,.55)');
+    const gold = x.createLinearGradient(0, 14, 0, 50); gold.addColorStop(0, '#fff3a0'); gold.addColorStop(1, '#c98a00');
+    x.strokeStyle = gold; x.lineWidth = 5; x.beginPath(); x.arc(32, 20, 8, 0, TAU); x.stroke();
+    x.fillStyle = gold; x.fillRect(29.5, 27, 5, 24); x.fillRect(34, 41, 7, 4); x.fillRect(34, 47, 5, 4);
+  }, .45);
+  GUN_SPR = spriteLevels(x => {   // the blowgun: a long wooden tube
+    glowHalo(x, 'rgba(255,170,80,.5)');
+    x.save(); x.translate(32, 32); x.rotate(-.6);
+    x.fillStyle = '#8a5a2a'; x.fillRect(-28, -3, 56, 6); x.fillStyle = '#5a3a1a'; x.fillRect(-28, -4, 6, 8); x.fillRect(10, -3, 3, 6);
+    x.fillStyle = '#222'; x.beginPath(); x.arc(28, 0, 2, 0, TAU); x.fill(); x.restore();
+  }, .45);
+  DARTS_SPR = spriteLevels(x => {   // a bundle of darts with red feathers
+    glowHalo(x, 'rgba(255,170,80,.45)');
+    [-6, 0, 6].forEach((o, i) => {
+      x.save(); x.translate(32 + o, 34); x.rotate(-.3 + i * .25);
+      x.fillStyle = '#ccc'; x.fillRect(-1, -16, 2, 26); x.fillStyle = '#c22'; x.beginPath(); x.moveTo(-5, 10); x.lineTo(0, 4); x.lineTo(5, 10); x.lineTo(0, 16); x.closePath(); x.fill();
+      x.restore();
+    });
+  }, .45);
+  DART_SPR = spriteLevels(x => { x.fillStyle = '#ddd'; x.fillRect(16, 31, 30, 2); x.fillStyle = '#c22'; x.fillRect(40, 28, 8, 8); }, .5);
+  PROP_SPR.table = spriteLevels(x => {
+    x.fillStyle = '#3a2412'; x.fillRect(8, 44, 4, 20); x.fillRect(52, 44, 4, 20);
+    x.fillStyle = '#5a3a20'; x.fillRect(2, 38, 60, 7); x.fillStyle = '#d8d0b8'; x.fillRect(26, 34, 4, 5); x.fillStyle = '#ffcc66'; x.fillRect(27, 31, 2, 3);
+  });
+  PROP_SPR.couch = spriteLevels(x => {
+    x.fillStyle = '#4a1414'; x.fillRect(2, 30, 60, 16); x.fillStyle = '#5e1a1a'; x.fillRect(2, 42, 60, 16);
+    x.fillStyle = '#3e1010'; x.fillRect(0, 36, 8, 22); x.fillRect(56, 36, 8, 22); x.fillStyle = '#2a1a0e'; x.fillRect(4, 58, 4, 6); x.fillRect(56, 58, 4, 6);
+  });
+  PROP_SPR.bed = spriteLevels(x => {
+    x.fillStyle = '#3a2412'; x.fillRect(0, 46, 64, 10); x.fillRect(0, 30, 5, 34); x.fillRect(59, 40, 5, 24);
+    x.fillStyle = '#cfc8b4'; x.fillRect(4, 38, 56, 9); x.fillStyle = '#5a2a3a'; x.fillRect(18, 36, 42, 11); x.fillStyle = '#e8e4d8'; x.fillRect(5, 33, 13, 7);
+    x.fillStyle = 'rgba(90,255,120,.45)'; x.fillRect(6, 57, 52, 2);   // green glow underneath: you can hide here
+  });
+  PROP_SPR.tub = spriteLevels(x => {
+    x.fillStyle = '#d9d9d0'; x.beginPath(); x.moveTo(2, 40); x.lineTo(62, 40); x.lineTo(58, 58); x.lineTo(6, 58); x.closePath(); x.fill();
+    x.fillStyle = '#f0efe8'; x.fillRect(1, 38, 62, 4); x.fillStyle = '#c9a227'; x.fillRect(8, 58, 4, 5); x.fillRect(52, 58, 4, 5); x.fillRect(54, 30, 3, 9);
+    x.fillStyle = 'rgba(120,20,20,.35)'; x.fillRect(20, 40, 12, 3);
+  });
 }
 
 /* =====================================================================
@@ -440,16 +587,14 @@ function initAudio() {
   master = AC.createGain(); master.gain.value = volume; master.connect(comp);
   noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
   const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  // echo for the jumpscare: a 2.5 second fading-noise "room"
   reverb = AC.createConvolver(); const ir = AC.createBuffer(2, AC.sampleRate * 2.5, AC.sampleRate);
   for (let ch = 0; ch < 2; ch++) { const b = ir.getChannelData(ch); for (let i = 0; i < b.length; i++) b[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / b.length, 3); }
   reverb.buffer = ir; const rv = AC.createGain(); rv.gain.value = .5; reverb.connect(rv); rv.connect(master);
-  // creepy background drone + fluorescent light hum
+  // creepy house drone + a ticking-clock hum
   droneGain = AC.createGain(); droneGain.gain.value = .07; droneGain.connect(master);
   const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 170; lp.connect(droneGain);
   [49, 49.6, 73.4].forEach(f => { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(lp); o.start(); });
-  const hum = AC.createOscillator(), hg = AC.createGain(); hum.frequency.value = 120; hg.gain.value = .012; hum.connect(hg); hg.connect(master); hum.start();
-  // chase layer: distorted noise + sub bass, louder the closer Damian is
+  const hum = AC.createOscillator(), hg = AC.createGain(); hum.frequency.value = 60; hg.gain.value = .01; hum.connect(hg); hg.connect(master); hum.start();
   chaseGain = AC.createGain(); chaseGain.gain.value = 0; chaseGain.connect(master);
   const shaper = AC.createWaveShaper(); shaper.curve = distortion(60); shaper.connect(chaseGain);
   const n = AC.createBufferSource(); n.buffer = noiseBuf; n.loop = true;
@@ -461,8 +606,7 @@ function initAudio() {
     voiceBuf = buf;
     voiceRev = AC.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);   // his voice, backwards
     for (let ch = 0; ch < buf.numberOfChannels; ch++) { const src = buf.getChannelData(ch), dst = voiceRev.getChannelData(ch); for (let i = 0; i < src.length; i++) dst[i] = src[src.length - 1 - i]; }
-  })
-    .catch(() => { voiceEl = new Audio(CONFIG.voice); });
+  }).catch(() => { voiceEl = new Audio(CONFIG.voice); });
 }
 function setVolume(v) { volume = v; if (master) master.gain.setTargetAtTime(v, AC.currentTime, .05); try { localStorage.setItem('damianHorror.volume', v); } catch (e) { } }
 function noiseHit(t, dur, freq, vol, type) {
@@ -474,19 +618,18 @@ function noiseHit(t, dur, freq, vol, type) {
 function tone(t, f0, f1, dur, vol, type) {
   const o = AC.createOscillator(), g = AC.createGain(); o.type = type || 'sine';
   o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  g.gain.setValueAtTime(Math.max(vol, .0002), t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
   o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
 }
 const sfx = {
   step(run) { if (!AC) return; noiseHit(AC.currentTime, .07, run ? 900 : 600, run ? .1 : .06); },
   heart(vol) { if (!AC) return; const t = AC.currentTime; tone(t, 75, 42, .16, vol); tone(t + .2, 70, 40, .14, vol * .7); },
   key() { if (!AC) return; const t = AC.currentTime;[784, 988, 1319, 1568].forEach((f, i) => tone(t + i * .07, f, 0, .35, .12, 'triangle')); },
+  pickup() { if (!AC) return; const t = AC.currentTime;[523, 784].forEach((f, i) => tone(t + i * .08, f, 0, .3, .12, 'triangle')); },
   locked() { if (!AC) return; const t = AC.currentTime; tone(t, 110, 90, .25, .2, 'square'); noiseHit(t, .15, 300, .2); },
   open() { if (!AC) return; const t = AC.currentTime;[392, 523, 659, 784, 1047].forEach((f, i) => tone(t + i * .1, f, 0, .5, .12, 'triangle')); },
   sting() { if (!AC) return; const t = AC.currentTime; tone(t, 900, 300, .8, .18, 'sawtooth'); noiseHit(t, .6, 3000, .15, 'highpass'); },
-  // he spotted you: a sharp stab of noise
   spotted() { if (!AC) return; const t = AC.currentTime; tone(t, 1400, 500, .5, .22, 'sawtooth'); tone(t, 70, 35, .6, .5); noiseHit(t, .4, 2500, .25, 'highpass'); },
-  // his heavy footsteps; you hear them through the halls, quieter the farther he is
   dstep(vol, pan) {
     if (!AC || vol < .01) return; const t = AC.currentTime, p = AC.createStereoPanner ? AC.createStereoPanner() : null;
     const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(65, t); o.frequency.exponentialRampToValueAtTime(32, t + .18);
@@ -494,18 +637,23 @@ const sfx = {
     o.connect(g); if (p) { p.pan.value = clamp(pan, -1, 1); g.connect(p); p.connect(master); } else g.connect(master); o.start(t); o.stop(t + .25);
     noiseHit(t, .08, 350, vol * .5);
   },
-  locker() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .25, 900, .25, 'bandpass'); tone(t, 220, 160, .2, .08, 'square'); tone(t + .12, 180, 140, .2, .06, 'square'); },
+  // a long creak for opening doors, a thud for closing
+  doorOpen(vol) { if (!AC) return; const t = AC.currentTime, v = vol === undefined ? .2 : vol; tone(t, 170, 260, .55, v * .5, 'sawtooth'); tone(t + .1, 230, 150, .45, v * .35, 'sawtooth'); noiseHit(t, .4, 1200, v * .4, 'bandpass'); },
+  doorClose(vol) { if (!AC) return; const t = AC.currentTime, v = vol === undefined ? .3 : vol; tone(t, 90, 45, .25, v); noiseHit(t, .15, 500, v); },
+  stairs() { if (!AC) return; const t = AC.currentTime; for (let i = 0; i < 4; i++) noiseHit(t + i * .12, .08, 500, .08); },
+  hide() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .25, 900, .2, 'bandpass'); tone(t, 200, 150, .2, .06, 'square'); },
   breath() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .9, 700, .05, 'bandpass'); noiseHit(t + 1.1, .7, 500, .035, 'bandpass'); },
-  // The jumpscare: impact hit + distorted multi-voice scream + shriek + Damian's voice backwards, all with an echo.
+  blow() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .18, 2500, .25, 'highpass'); tone(t, 600, 200, .12, .05, 'sine'); },
+  thud() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .1, 800, .2); tone(t, 300, 120, .1, .1, 'triangle'); },
+  hit() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .12, 1500, .3); tone(t, 160, 60, .5, .35, 'sawtooth'); },
+  click() { if (!AC) return; tone(AC.currentTime, 1200, 0, .05, .08, 'square'); },
   death() {
     if (!AC) return; const t = AC.currentTime, end = t + 2.5;
     const out = AC.createGain(); out.connect(master); out.connect(reverb);
-    // 1) impact: deep boom and a crack
     tone(t, 90, 28, .9, 1, 'sine'); tone(t, 55, 22, 1.2, .8, 'triangle');
     const crack = AC.createBufferSource(), cf = AC.createBiquadFilter(), cg = AC.createGain();
     crack.buffer = noiseBuf; cf.type = 'highpass'; cf.frequency.value = 1200; cg.gain.setValueAtTime(1, t); cg.gain.exponentialRampToValueAtTime(.0001, t + .35);
     crack.connect(cf); cf.connect(cg); cg.connect(out); crack.start(t); crack.stop(t + .4);
-    // 2) the scream: detuned sawtooth voices sliding down, with a fast wobble, through heavy distortion
     const g = AC.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(1, t + .03); g.gain.setValueAtTime(1, t + 1.6); g.gain.exponentialRampToValueAtTime(.0001, end);
     const sh = AC.createWaveShaper(); sh.curve = distortion(500); sh.connect(g); g.connect(out);
     [[560, 210], [700, 260], [880, 330], [1180, 450], [1500, 600]].forEach(([a, b]) => {
@@ -515,7 +663,6 @@ const sfx = {
     });
     const s = AC.createBufferSource(), f = AC.createBiquadFilter(); s.buffer = noiseBuf; s.loop = true; f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = .7;
     s.connect(f); f.connect(sh); s.start(t); s.stop(end);
-    // 3) a piercing shriek on top (second wave when he lunges)
     [[t, 2600, 1700], [t + 1.25, 3200, 1500]].forEach(([st, a, b]) => {
       const o = AC.createOscillator(), og = AC.createGain(), l = AC.createOscillator(), lg = AC.createGain();
       o.type = 'square'; o.frequency.setValueAtTime(a, st); o.frequency.exponentialRampToValueAtTime(b, st + 1.1);
@@ -523,7 +670,6 @@ const sfx = {
       og.gain.setValueAtTime(.0001, st); og.gain.exponentialRampToValueAtTime(.16, st + .04); og.gain.exponentialRampToValueAtTime(.0001, st + 1.15);
       o.connect(og); og.connect(out); o.start(st); o.stop(st + 1.2); l.start(st); l.stop(st + 1.2);
     });
-    // 4) Damian's voice: sped up and screaming, plus slowed down and backwards underneath
     playVoice(1.0, 0, 1.4, true);
     if (voiceRev) {
       const r = AC.createBufferSource(), rg = AC.createGain(), rd = AC.createWaveShaper();
@@ -531,7 +677,6 @@ const sfx = {
       r.connect(rd); rd.connect(rg); rg.connect(out); r.start(t + .05);
     }
   },
-  // After the jumpscare: ears ringing and a low rumble while the death screen is up
   afterDeath() {
     if (!AC) return; const t = AC.currentTime;
     const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = 3400;
@@ -557,21 +702,22 @@ function playVoice(vol, pan, rate, force) {
    ===================================================================== */
 const VW = 480; let VH = 270;
 const view = $('view'), ctx = view.getContext('2d');
-const P = { x: START.x, y: START.y, a: START.a, pitch: 0, stamina: 100, tired: false, bob: 0, stepT: 0,
-  crouch: false, light: true, hidden: null, hideT: 0, noiseT: 0, camZ: .5 };
-// Turning left/right (dx, in pixels) and looking up/down (dy). Pitch shifts the horizon, old-school style.
+const P = { f: START.f, x: START.x, y: START.y, a: START.a, pitch: 0, stamina: 100, tired: false, bob: 0, stepT: 0,
+  crouch: false, light: true, hidden: null, hideT: 0, noiseT: 0, camZ: .5, hasGun: false, darts: 0 };
 function look(dx, dy, scale) {
   P.a += dx * .003 * lookSpeed * scale;
   P.pitch = clamp(P.pitch - dy * .9 * lookSpeed * scale * (VH / 270), -VH * .42, VH * .42);
 }
-const keys = { list: [], held: 0 };
-// Damian's brain. mode: 'patrol' | 'investigate' | 'chase' | 'search' | 'check' (coming for your locker)
-const D = { x: 0, y: 0, path: [], repath: 0, awakeAt: 0, field: null, voiceT: 0, mode: 'patrol', heading: 0, goal: null, goalKey: '',
-  lastSeen: null, lostT: 0, seenAt: 0, idleT: 0, searchT: 0, footT: 0, knowsHide: null, checkT: 0 };
-let state = 'title', lastT = 0, t0 = 0, deaths = 0, runStart = 0, zbuf = new Float32Array(VW), showMap = true, isTouch = false, noLock = false;
-let danger = 0, heartT = 0, flicker = 1, flickerT = 0, scareT = 0, msgT = 0, exitField = null, exitRepath = 0, arrowTarget = null, lockedMsgT = 0;
+const keys = { held: 0 };
+let items = [];            // keys, the blowgun and dart bundles lying around the house
+const darts = [];          // darts in flight
+// Damian's brain. mode: 'patrol' | 'investigate' | 'chase' | 'search' | 'check' (coming for your hiding spot) | 'stunned'
+const D = { f: 0, x: 0, y: 0, path: [], repath: 0, awakeAt: 0, field: null, voiceT: 0, mode: 'patrol', heading: 0, goal: null, goalKey: '',
+  lastSeen: null, lostT: 0, seenAt: 0, idleT: 0, searchT: 0, footT: 0, knowsHide: null, doorWait: 0, stunUntil: 0 };
+let state = 'title', lastT = 0, deaths = 0, runStart = 0, zbuf = new Float32Array(VW), showMap = true, isTouch = false, noLock = false;
+let danger = 0, heartT = 0, flicker = 1, flickerT = 0, scareT = 0, msgT = 0, exitField = null, exitRepath = 0, arrowTarget = null, lockedMsgT = 0, shotReady = 0;
 const SHADE = Array.from({ length: 64 }, (_, i) => `rgba(0,0,0,${(i / 63).toFixed(3)})`);
-const input = { f: 0, s: 0, turn: 0, run: false };
+const input = { touchRun: false };
 const held = {};
 
 function resize() {
@@ -580,34 +726,45 @@ function resize() {
   const sc = $('scare'); sc.width = innerWidth; sc.height = innerHeight;
 }
 function say(text, secs) { const m = $('msg'); m.textContent = text; m.style.opacity = 1; msgT = (secs || 3.5); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-function cellDistField() { return bfs(Math.floor(START.x), Math.floor(START.y)); }
-function scatterKeys() {
-  const fromStart = cellDistField(), r = Math.random, cands = [];
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isFloor(x, y) && R[y][x] >= 2 && fromStart.dist[x + y * MW] >= 6) cands.push([x, y]);
-  for (let i = cands.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [cands[i], cands[j]] = [cands[j], cands[i]]; }
-  const picked = [];
-  for (const c of cands) { if (picked.every(p => Math.hypot(p[0] - c[0], p[1] - c[1]) >= 5)) picked.push(c); if (picked.length >= CONFIG.keysNeeded) break; }
-  keys.list = picked.map(([x, y]) => ({ x: x + .5, y: y + .5, got: false, phase: r() * TAU }));
+// Scatter the 5 keys, the blowgun and the dart bundles around all three floors.
+function scatterItems() {
+  const field = bfs3(node(START.f, Math.floor(START.x), Math.floor(START.y))), cells = [];
+  for (let f = 0; f < NF; f++) for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++)
+    if (openFloor(f, x, y) && field.dist[node(f, x, y)] >= 5 && !HIDES.some(h => h.f === f && h.sx === x && h.sy === y)) cells.push({ f, x, y });
+  shuffle(cells);
+  const taken = [], perFloor = [0, 0, 0];
+  const pick = (spacing, maxPerFloor) => {
+    const c = cells.find(c => (!maxPerFloor || perFloor[c.f] < maxPerFloor) && taken.every(t => t.f !== c.f || Math.hypot(t.x - c.x, t.y - c.y) >= spacing));
+    if (c) { taken.push(c); perFloor[c.f]++; }
+    return c;
+  };
+  items = [];
+  for (let i = 0; i < CONFIG.keysNeeded; i++) { const c = pick(4, 2); if (c) items.push({ kind: 'key', f: c.f, x: c.x + .5, y: c.y + .5, phase: Math.random() * TAU }); }
+  if (!P.hasGun) { const c = pick(3); if (c) items.push({ kind: 'gun', f: c.f, x: c.x + .5, y: c.y + .5, phase: 0 }); }
+  for (let i = 0; i < CONFIG.dartPacks; i++) { const c = pick(3); if (c) items.push({ kind: 'darts', f: c.f, x: c.x + .5, y: c.y + .5, phase: Math.random() * TAU }); }
   keys.held = 0; drawKeyHud();
 }
 function placeDamian() {
-  const f = bfs(Math.floor(P.x), Math.floor(P.y)), far = [];
-  let maxD = 0; for (let i = 0; i < f.dist.length; i++) maxD = Math.max(maxD, f.dist[i]);
-  for (let i = 0; i < f.dist.length; i++) if (f.dist[i] >= maxD * .75) far.push(i);
+  const field = bfs3(node(P.f, Math.floor(P.x), Math.floor(P.y))), far = [];
+  let maxD = 0; for (let i = 0; i < field.dist.length; i++) maxD = Math.max(maxD, field.dist[i]);
+  for (let i = 0; i < field.dist.length; i++) if (field.dist[i] >= maxD * .7 && openFloor(nodeF(i), nodeX(i), nodeY(i))) far.push(i);
   const c = far[Math.floor(Math.random() * far.length)];
-  D.x = c % MW + .5; D.y = ((c / MW) | 0) + .5; D.path = []; D.repath = 0;
+  D.f = nodeF(c); D.x = nodeX(c) + .5; D.y = nodeY(c) + .5; D.path = []; D.repath = 0; D.doorWait = 0; D.stunUntil = 0;
   D.awakeAt = performance.now() + CONFIG.graceSeconds * 1000; D.stung = false; D.voiceT = 0;
   D.mode = 'patrol'; D.goal = null; D.goalKey = ''; D.lastSeen = null; D.lostT = 0; D.idleT = 0; D.knowsHide = null; D.heading = Math.random() * TAU;
   headIndex = (headIndex + 1) % HEADS.length;
 }
 function newLife(fresh) {
-  P.x = START.x; P.y = START.y; P.a = START.a; P.pitch = 0; P.stamina = 100; P.tired = false;
-  P.crouch = false; P.hidden = null; P.hideT = 0; P.light = true; P.camZ = .5; noises.length = 0;
+  P.f = START.f; P.x = START.x; P.y = START.y; P.a = START.a; P.pitch = 0; P.stamina = 100; P.tired = false;
+  P.crouch = false; P.hidden = null; P.hideT = 0; P.light = true; P.camZ = .5; noises.length = 0; darts.length = 0;
+  if (fresh) { P.hasGun = false; P.darts = 0; }   // you keep the blowgun (and darts) between lives
+  DOOR_OPEN.clear();
   $('crouchBtn').classList.remove('on'); $('lightBtn').classList.remove('on');
-  scatterKeys(); placeDamian(); danger = 0;
+  scatterItems(); placeDamian(); danger = 0; updateAmmo();
   if (fresh) { deaths = 0; runStart = performance.now(); }
-  say(fresh ? 'Find 5 keys. Stay out of his sight, and don\'t let him hear you.' : 'Your keys are scattered again. He\'s waking up...', 4.5);
+  say(fresh ? 'You woke up in his house. Find 5 keys for the front door. Stay quiet.' : 'Your keys are scattered again. He\'s waking up...', 4.5);
 }
 
 /* =====================================================================
@@ -618,47 +775,70 @@ addEventListener('keydown', e => {
   held[e.code] = true;
   if (state === 'play') {
     if (e.code === 'KeyM') showMap = !showMap;
-    if (e.code === 'KeyE' || e.code === 'Space') toggleHide();
+    if (e.code === 'KeyE' || e.code === 'Space') useAction();
     if (e.code === 'KeyC' || e.code === 'ControlLeft' || e.code === 'ControlRight') toggleCrouch();
     if (e.code === 'KeyF') toggleLight();
+    if (e.code === 'KeyG') shoot();
   }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
 });
 function toggleCrouch() { if (P.hidden) return; P.crouch = !P.crouch; $('crouchBtn').classList.toggle('on', P.crouch); }
-function toggleLight() { P.light = !P.light; $('lightBtn').classList.toggle('on', !P.light); sfx.step(false); say(P.light ? 'Flashlight on.' : 'Flashlight off. Harder for him to spot you... and harder for you to see.', 2.5); }
+function toggleLight() { P.light = !P.light; $('lightBtn').classList.toggle('on', !P.light); sfx.click(); say(P.light ? 'Flashlight on.' : 'Flashlight off. Harder for him to spot you... and harder for you to see.', 2.5); }
 function nearHide() {
   if (P.hidden) return P.hidden;
   let best = null, bd = 1e9;
-  for (const h of HIDES) { const d = Math.hypot(h.sx + .5 - P.x, h.sy + .5 - P.y); if (d < .95 && d < bd) { bd = d; best = h; } }
+  for (const h of HIDES) { if (h.f !== P.f) continue; const d = Math.hypot(h.sx + .5 - P.x, h.sy + .5 - P.y); if (d < .95 && d < bd) { bd = d; best = h; } }
   return best;
+}
+function doorInFront() {
+  for (const d of [.6, 1.1]) {
+    const x = Math.floor(P.x + Math.cos(P.a) * d), y = Math.floor(P.y + Math.sin(P.a) * d);
+    if (cellM(P.f, x, y) === 10) return { x, y };
+    if (!passSight(P.f, x, y)) return null;
+  }
+  return null;
+}
+const overlapsCell = (px, py, cx, cy, r) => px + r > cx && px - r < cx + 1 && py + r > cy && py - r < cy + 1;
+function toggleDoor(d) {
+  const k = key3(P.f, d.x, d.y);
+  if (DOOR_OPEN.has(k)) {
+    if (overlapsCell(P.x, P.y, d.x, d.y, .24) || (D.f === P.f && overlapsCell(D.x, D.y, d.x, d.y, .3))) return;   // someone's in the doorway
+    DOOR_OPEN.delete(k); sfx.doorClose();
+  } else { DOOR_OPEN.add(k); sfx.doorOpen(); }
+  makeNoise(P.f, d.x + .5, d.y + .5, 4);
+}
+// E: get out of a hiding spot, otherwise use the door in front of you, otherwise hide.
+function useAction() {
+  if (P.hidden) return toggleHide();
+  const d = doorInFront(); if (d) return toggleDoor(d);
+  if (nearHide()) return toggleHide();
 }
 function toggleHide() {
   if (P.hidden) {   // climb out
-    const h = P.hidden; P.hidden = null; sfx.locker(); makeNoise(P.x, P.y, 5);
+    const h = P.hidden; P.hidden = null; sfx.hide(); makeNoise(P.f, P.x, P.y, 5);
     P.x = h.sx + .5; P.y = h.sy + .5; return;
   }
   const h = nearHide(); if (!h) return;
-  // If he can see you climbing in, he knows exactly where you are.
-  if (D.mode === 'chase' && canSee()) D.knowsHide = h;
-  P.hidden = h; P.hideT = 0; P.crouch = false; $('crouchBtn').classList.remove('on'); sfx.locker(); makeNoise(P.x, P.y, 5);
-  // tuck into the locker, facing out into the hallway
+  if (D.mode === 'chase' && canSee()) D.knowsHide = h;   // he watched you climb in
+  P.hidden = h; P.hideT = 0; P.crouch = false; $('crouchBtn').classList.remove('on'); sfx.hide(); makeNoise(P.f, P.x, P.y, 5);
   P.x = h.sx + .5 + (h.wx - h.sx) * .32; P.y = h.sy + .5 + (h.wy - h.sy) * .32; P.a = Math.atan2(h.sy - h.wy, h.sx - h.wx); P.pitch = 0;
-  say('Hiding. Stay quiet... press E to get out.', 3);
+  say(h.kind === 'bed' ? 'Hiding under the bed. Stay quiet... E to get out.' : 'Hiding in the wardrobe. Stay quiet... E to get out.', 3);
 }
 addEventListener('keyup', e => { held[e.code] = false; });
 addEventListener('blur', () => { for (const k in held) held[k] = false; });
 view.addEventListener('click', () => { if (state === 'play' && !isTouch && !noLock && document.pointerLockElement !== view) lockMouse(); });
-// Mouse look: free movement while the mouse is locked to the game, or click-and-drag if the browser won't lock it.
 let dragging = false;
-view.addEventListener('mousedown', () => { dragging = true; });
+view.addEventListener('mousedown', e => {
+  dragging = true;
+  if (e.button === 0 && state === 'play' && document.pointerLockElement === view) shoot();   // click to shoot (once the mouse is locked)
+});
 addEventListener('mouseup', () => { dragging = false; });
 addEventListener('mousemove', e => {
-  if (state !== 'play' || isTouch) return;   // phones send fake mouse events after touches; ignore them
+  if (state !== 'play' || isTouch) return;
   if (document.pointerLockElement === view || dragging) look(e.movementX, e.movementY, 1);
 });
 function lockMouse() {
   if (isTouch || !view.requestPointerLock) { noLock = true; return; }
-  // If the browser refuses (e.g. right after pressing Esc), clicking the game tries again.
   try { const p = view.requestPointerLock(); if (p && p.catch) p.catch(() => { }); } catch (e) { }
 }
 document.addEventListener('pointerlockchange', () => {
@@ -666,12 +846,12 @@ document.addEventListener('pointerlockchange', () => {
 });
 function pause() {
   state = 'paused'; $('paused').hidden = false; dragging = false;
-  if (AC) chaseGain.gain.setTargetAtTime(0, AC.currentTime, .05);   // don't keep blaring the chase noise while paused
+  if (AC) chaseGain.gain.setTargetAtTime(0, AC.currentTime, .05);
 }
 function resume() { $('paused').hidden = true; state = 'play'; lastT = performance.now(); lockMouse(); }
 document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') pause(); });
 
-const touch = { moveId: null, ox: 0, oy: 0, mx: 0, my: 0, lookId: null, lx: 0 };
+const touch = { moveId: null, ox: 0, oy: 0, mx: 0, my: 0, lookId: null, lx: 0, ly: 0 };
 function enableTouch() {
   if (isTouch) return; isTouch = true; noLock = true;
   $('ctrlDesk').hidden = true; $('ctrlTouch').hidden = false; $('hint').textContent = 'tap: map';
@@ -701,14 +881,14 @@ const runBtn = $('runBtn');
 runBtn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); input.touchRun = true; runBtn.classList.add('on'); });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => runBtn.addEventListener(ev, () => { input.touchRun = false; runBtn.classList.remove('on'); }));
 $('mini').addEventListener('pointerdown', () => { showMap = !showMap; });
-[['crouchBtn', toggleCrouch], ['lightBtn', toggleLight], ['hideBtn', toggleHide]].forEach(([id, fn]) =>
+[['crouchBtn', toggleCrouch], ['lightBtn', toggleLight], ['hideBtn', useAction], ['shootBtn', shoot]].forEach(([id, fn]) =>
   $(id).addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); if (state === 'play') fn(); }));
 $('hint').addEventListener('pointerdown', e => { e.stopPropagation(); showMap = !showMap; });
 
 /* =====================================================================
    UPDATE
    ===================================================================== */
-function walkable(x, y) { return isFloor(Math.floor(x), Math.floor(y)); }
+const walkable = (x, y) => passPlayer(P.f, Math.floor(x), Math.floor(y));
 function moveBy(dx, dy) {
   const r = .22;
   const nx = P.x + dx;
@@ -716,194 +896,264 @@ function moveBy(dx, dy) {
   const ny = P.y + dy;
   if (walkable(P.x - r, ny + Math.sign(dy) * r) && walkable(P.x + r, ny + Math.sign(dy) * r)) P.y = ny;
 }
+function changeFloor(st) {
+  const from = { f: P.f, x: P.x, y: P.y };
+  P.f = st.to.f; P.x = st.arrive.x + .5; P.y = st.arrive.y + .5; P.a = Math.atan2(st.arrive.y - st.to.y, st.arrive.x - st.to.x); P.pitch = 0;
+  sfx.stairs(); makeNoise(from.f, from.x, from.y, 5); makeNoise(P.f, P.x, P.y, 5);
+  const fade = $('fade'); fade.style.transition = 'none'; fade.style.opacity = .9; void fade.offsetWidth; fade.style.transition = 'opacity .35s'; fade.style.opacity = 0;
+  say(FL[P.f].name, 1.6);
+}
+
+/* ---- the blowgun ---- */
+function updateAmmo() {
+  const a = $('ammo'); a.style.display = P.hasGun ? 'block' : 'none';
+  a.textContent = `🎯 Blowgun · ${P.darts} dart${P.darts === 1 ? '' : 's'}${isTouch ? '' : ' (click / G)'}`;
+  $('shootBtn').style.display = P.hasGun && isTouch ? 'block' : 'none';
+}
+function shoot() {
+  if (state !== 'play' || !P.hasGun || P.hidden) return;
+  const now = performance.now(); if (now < shotReady) return;
+  if (P.darts <= 0) { sfx.click(); say('Out of darts. Look for more around the house.', 2); shotReady = now + 400; return; }
+  shotReady = now + 800; P.darts--; updateAmmo(); sfx.blow();
+  darts.push({ f: P.f, x: P.x, y: P.y, dx: Math.cos(P.a), dy: Math.sin(P.a), z: clamp(-P.pitch / VH * .9, -.3, .3), went: 0 });
+}
+function stunDamian() {
+  D.mode = 'stunned'; D.stunUntil = performance.now() + CONFIG.stunSeconds * 1000; D.knowsHide = null; D.goal = null;
+  sfx.hit(); playVoice(.9, 0, .5, true);
+  say(`Direct hit! Damian is knocked out for ${CONFIG.stunSeconds} seconds. GO!`, 3.5);
+}
+function updateDarts(dt) {
+  for (let i = darts.length - 1; i >= 0; i--) {
+    const d = darts[i]; let hit = null;
+    for (let s = 0; s < 4 && !hit; s++) {
+      const step = 15 * dt / 4; d.x += d.dx * step; d.y += d.dy * step; d.went += step;
+      if (D.f === d.f && D.mode !== 'stunned' && Math.hypot(D.x - d.x, D.y - d.y) < .45) hit = 'damian';
+      else if (!passSight(d.f, Math.floor(d.x), Math.floor(d.y))) hit = 'wall';
+      else if (d.went > CONFIG.dartRange) hit = 'floor';
+    }
+    if (!hit) continue;
+    darts.splice(i, 1);
+    if (hit === 'damian') stunDamian();
+    else { if (d.f === P.f) sfx.thud(); makeNoise(d.f, d.x - d.dx * .3, d.y - d.dy * .3, 8); }   // a missed dart makes noise: use it to distract him
+  }
+}
+
 /* ---- Damian's senses ---- */
-function lineOfSight(x0, y0, x1, y1) {
+function lineOfSight(f, x0, y0, x1, y1) {
   const dist = Math.hypot(x1 - x0, y1 - y0), steps = Math.ceil(dist * 5);
-  for (let i = 1; i < steps; i++) { const t = i / steps; if (!walkable(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return false; }
+  for (let i = 1; i < steps; i++) { const t = i / steps; if (!passSight(f, Math.floor(x0 + (x1 - x0) * t), Math.floor(y0 + (y1 - y0) * t))) return false; }
   return true;
 }
 function sightRange() { let r = CONFIG.sightRange + .6 * keys.held; if (!P.light) r *= .5; if (P.crouch) r *= .75; return r; }
 function canSee() {
-  if (P.hidden) return false;
+  if (P.hidden || D.f !== P.f || D.mode === 'stunned') return false;
   const dx = P.x - D.x, dy = P.y - D.y, d = Math.hypot(dx, dy);
-  if (d < CONFIG.closeSense) return lineOfSight(D.x, D.y, P.x, P.y);   // too close to sneak past, even behind him
+  if (d < CONFIG.closeSense) return lineOfSight(P.f, D.x, D.y, P.x, P.y);
   if (d > sightRange()) return false;
   let ang = Math.atan2(dy, dx) - D.heading; ang = Math.atan2(Math.sin(ang), Math.cos(ang));
   if (Math.abs(ang) > CONFIG.sightAngle * Math.PI / 180) return false;
-  return lineOfSight(D.x, D.y, P.x, P.y);
+  return lineOfSight(P.f, D.x, D.y, P.x, P.y);
 }
-// Noises travel through the hallways (path distance), so walls and doors muffle them.
+// Noises travel through the house (path distance, up and down the stairs).
 const noises = [];
-function makeNoise(x, y, radius) { noises.push({ x, y, r: radius * (1 + .08 * keys.held) }); }
+function makeNoise(f, x, y, radius) { noises.push({ f, x, y, r: radius * (1 + .08 * keys.held) }); }
 function hearNoises() {
-  if (performance.now() < D.awakeAt) { noises.length = 0; return; }
+  if (performance.now() < D.awakeAt || D.mode === 'stunned') { noises.length = 0; return; }
   for (const n of noises) {
     if (D.mode === 'chase') break;
-    const field = bfs(Math.floor(n.x), Math.floor(n.y)), d = field.dist[Math.floor(D.x) + Math.floor(D.y) * MW];
+    const field = bfs3(node(n.f, Math.floor(n.x), Math.floor(n.y))), d = field.dist[node(D.f, Math.floor(D.x), Math.floor(D.y))];
     if (d < 0 || d > n.r) continue;
-    // he always hears it up close; near the edge of the range he only sometimes notices
-    if (Math.random() < clamp(1.2 - d / n.r, .12, 1)) investigate(n.x, n.y);
+    if (Math.random() < clamp(1.2 - d / n.r, .12, 1)) investigate(n.f, n.x, n.y);
   }
   noises.length = 0;
 }
 
 /* ---- Damian's brain ---- */
-function setGoal(x, y) { const key = Math.floor(x) + ',' + Math.floor(y); D.goal = { x, y }; if (key !== D.goalKey) { D.goalKey = key; D.repath = 0; } }
-function randomFloorNear(cx, cy, maxR) {
-  for (let i = 0; i < 60; i++) {
+function setGoal(f, x, y) { const key = key3(f, Math.floor(x), Math.floor(y)); D.goal = { f, x, y }; if (key !== D.goalKey) { D.goalKey = key; D.repath = 0; } }
+function randomCell(f, cx, cy, maxR) {
+  for (let i = 0; i < 80; i++) {
     const x = Math.floor(cx + (Math.random() * 2 - 1) * maxR), y = Math.floor(cy + (Math.random() * 2 - 1) * maxR);
-    if (isFloor(x, y)) return { x: x + .5, y: y + .5 };
+    if (openFloor(f, x, y)) return { f, x: x + .5, y: y + .5 };
   }
-  return { x: Math.floor(cx) + .5, y: Math.floor(cy) + .5 };
+  return { f, x: Math.floor(cx) + .5, y: Math.floor(cy) + .5 };
 }
 function patrolGoal() {
-  // Usually drifts toward your part of the school (he's hunting, not just wandering), sometimes anywhere.
-  const g = Math.random() < .6 ? randomFloorNear(P.x, P.y, 9) : randomFloorNear(MW / 2, MH / 2, 16);
-  setGoal(g.x, g.y);
+  // Usually drifts toward you (he's hunting, not wandering), sometimes checks another floor.
+  const g = Math.random() < .55 ? randomCell(P.f, P.x, P.y, 7) : randomCell(Math.floor(Math.random() * NF), MW / 2, MH / 2, 11);
+  setGoal(g.f, g.x, g.y);
 }
 function startChase() {
   if (D.mode !== 'chase') { sfx.spotted(); playVoice(1, 0, .9, true); say('HE SEES YOU. RUN!', 2.2); }
   D.mode = 'chase'; D.lostT = 0;
 }
-function investigate(x, y) {
-  if (D.mode === 'chase' || D.mode === 'check') return;
-  if (D.mode === 'patrol') say('He heard something...', 2);
-  D.mode = 'investigate'; D.idleT = 0; setGoal(Math.floor(x) + .5, Math.floor(y) + .5);
+function investigate(f, x, y) {
+  if (D.mode === 'chase' || D.mode === 'check' || D.mode === 'stunned') return;
+  if (D.mode === 'patrol' && f === P.f) say('He heard something...', 2);
+  D.mode = 'investigate'; D.idleT = 0; setGoal(f, Math.floor(x) + .5, Math.floor(y) + .5);
 }
-function startSearch(x, y) { D.mode = 'search'; D.searchT = 6 + Math.random() * 3; D.idleT = 0; setGoal(x, y); }
+function startSearch(f, x, y) { D.mode = 'search'; D.searchT = 6 + Math.random() * 3; D.idleT = 0; setGoal(f, x, y); }
+function damianDoorSound(open) { const near = D.f === P.f ? 1 / (1 + Math.hypot(D.x - P.x, D.y - P.y) * .35) : .15; open ? sfx.doorOpen(.3 * near) : sfx.doorClose(.3 * near); }
 function moveDamian(dt, speed) {
   if (!D.goal) return true;
-  if ((D.repath -= dt) <= 0) { D.repath = .3; D.field = bfs(Math.floor(D.goal.x), Math.floor(D.goal.y)); D.path = pathFrom(D.field, Math.floor(D.x), Math.floor(D.y)); }
+  if (D.doorWait > 0) { D.doorWait -= dt; return false; }
+  if ((D.repath -= dt) <= 0) {
+    D.repath = .3; D.field = bfs3(node(D.goal.f, Math.floor(D.goal.x), Math.floor(D.goal.y)));
+    D.path = pathFrom(D.field, node(D.f, Math.floor(D.x), Math.floor(D.y)));
+  }
   if (!D.path.length) return true;   // can't get there
   let tx = D.goal.x, ty = D.goal.y;
-  if (D.path.length > 2) { const c = D.path[1]; tx = c % MW + .5; ty = ((c / MW) | 0) + .5; if (Math.hypot(tx - D.x, ty - D.y) < .12) D.path.shift(); }
+  if (D.path.length > 1 && (D.path.length > 2 || nodeF(D.path[1]) !== D.f || D.goal.f !== D.f)) {
+    const c = D.path[1], cf = nodeF(c), cx = nodeX(c), cy = nodeY(c);
+    if (cf !== D.f) {   // take the stairs
+      D.f = cf; D.x = cx + .5; D.y = cy + .5; D.path.shift(); D.doorWait = .4;
+      if (D.f === P.f || Math.random() < .5) sfx.stairs();
+      return false;
+    }
+    tx = cx + .5; ty = cy + .5;
+    if (cellM(cf, cx, cy) === 10 && !isDoorOpen(cf, cx, cy) && Math.hypot(tx - D.x, ty - D.y) < 1.1) {   // a closed door: he opens it
+      DOOR_OPEN.add(key3(cf, cx, cy)); D.doorWait = .45; damianDoorSound(true); return false;
+    }
+    if (Math.hypot(tx - D.x, ty - D.y) < .12) D.path.shift();
+  }
   const dd = Math.hypot(tx - D.x, ty - D.y), step = Math.min(speed * dt, dd);
   if (dd > 1e-4) {
     D.x += (tx - D.x) / dd * step; D.y += (ty - D.y) / dd * step;
-    // turn to face where he's going (he looks where he walks)
     let want = Math.atan2(ty - D.y, tx - D.x) - D.heading; want = Math.atan2(Math.sin(want), Math.cos(want));
     D.heading += clamp(want, -7 * dt, 7 * dt);
   }
-  return Math.hypot(D.goal.x - D.x, D.goal.y - D.y) < .35;
+  return D.goal.f === D.f && Math.hypot(D.goal.x - D.x, D.goal.y - D.y) < .35;
 }
 function lookAround(dt) { D.heading += Math.sin(performance.now() / 380) * 3.2 * dt; }
 function thinkDamian(dt, now) {
+  if (D.mode === 'stunned') {
+    if (now < D.stunUntil) return;
+    // he wakes up angry and goes looking for you
+    const g = randomCell(P.f, P.x, P.y, 3); startSearch(g.f, g.x, g.y); D.searchT = 10;
+    say('Damian woke up... and he\'s angry.', 3); sfx.sting();
+  }
   const sees = canSee();
-  if (sees) { D.lastSeen = { x: P.x, y: P.y }; D.seenAt = now; if (D.mode !== 'check' || !P.hidden) startChase(); }
+  if (sees) { D.lastSeen = { f: P.f, x: P.x, y: P.y }; D.seenAt = now; if (D.mode !== 'check' || !P.hidden) startChase(); }
   const chaseSpeed = CONFIG.damianSpeed + CONFIG.damianSpeedPerKey * keys.held;
   switch (D.mode) {
     case 'chase':
-      if (sees) { setGoal(P.x, P.y); D.lostT = 0; }
+      if (sees) { setGoal(P.f, P.x, P.y); D.lostT = 0; }
       else {
         D.lostT += dt;
-        if (P.hidden && D.knowsHide === P.hidden) { D.mode = 'check'; break; }   // he watched you climb in
-        // For a moment after losing sight he still follows you (around a corner, through a door)...
-        if (D.lostT < CONFIG.memorySeconds) setGoal(P.hidden ? P.hidden.sx + .5 : P.x, P.hidden ? P.hidden.sy + .5 : P.y);
-        else { startSearch(D.goal.x, D.goal.y); say('You broke his line of sight. Keep moving...', 2.5); break; }   // ...then he has to guess.
+        if (P.hidden && D.knowsHide === P.hidden) { D.mode = 'check'; break; }
+        if (D.lostT < CONFIG.memorySeconds) setGoal(P.f, P.hidden ? P.hidden.sx + .5 : P.x, P.hidden ? P.hidden.sy + .5 : P.y);
+        else { startSearch(D.goal.f, D.goal.x, D.goal.y); say('You broke his line of sight. Keep moving...', 2.5); break; }
       }
       moveDamian(dt, chaseSpeed);
       break;
-    case 'check': {   // coming to open the locker you're in
-      const h = D.knowsHide; if (!h) { startSearch(D.x, D.y); break; }
-      setGoal(h.sx + .5, h.sy + .5);
-      if (moveDamian(dt, CONFIG.searchSpeed + .3)) { D.knowsHide = null; startSearch(h.sx + .5, h.sy + .5); }   // you weren't in there
+    case 'check': {
+      const h = D.knowsHide; if (!h) { startSearch(D.f, D.x, D.y); break; }
+      setGoal(h.f, h.sx + .5, h.sy + .5);
+      if (moveDamian(dt, CONFIG.searchSpeed + .3)) { D.knowsHide = null; startSearch(h.f, h.sx + .5, h.sy + .5); }
       break;
     }
     case 'investigate':
-      if (moveDamian(dt, CONFIG.searchSpeed)) { lookAround(dt); if ((D.idleT += dt) > 2.2) startSearch(D.x, D.y); }
+      if (moveDamian(dt, CONFIG.searchSpeed)) { lookAround(dt); if ((D.idleT += dt) > 2.2) startSearch(D.f, D.x, D.y); }
       break;
     case 'search':
       D.searchT -= dt;
       if (moveDamian(dt, CONFIG.searchSpeed)) {
         lookAround(dt);
-        if ((D.idleT += dt) > 1.2) { D.idleT = 0; const g = randomFloorNear(D.x, D.y, 4); setGoal(g.x, g.y); }
+        if ((D.idleT += dt) > 1.2) { D.idleT = 0; const g = randomCell(D.f, D.x, D.y, 4); setGoal(g.f, g.x, g.y); }
       }
       if (D.searchT <= 0) { D.mode = 'patrol'; patrolGoal(); }
       break;
-    default:   // patrol
+    default:
       if (!D.goal) patrolGoal();
       if (moveDamian(dt, CONFIG.patrolSpeed)) { lookAround(dt); if ((D.idleT += dt) > 1.5 + Math.random() * 2) { D.idleT = 0; patrolGoal(); } }
   }
-  // Hide too long and he hears you breathing.
   if (P.hidden && P.hideT > CONFIG.hideCheckSeconds && D.mode !== 'chase' && D.mode !== 'check') {
-    D.knowsHide = P.hidden; D.mode = 'check'; say('He heard you breathing... he\'s coming to check the lockers. GET OUT!', 4);
+    D.knowsHide = P.hidden; D.mode = 'check'; say('He heard you breathing... he\'s coming to check your hiding spot. GET OUT!', 4);
   }
 }
 
 function update(dt, now) {
-  // movement (frozen while hiding)
   const hiding = !!P.hidden;
   const f = hiding ? 0 : (held.KeyW || held.ArrowUp ? 1 : 0) - (held.KeyS || held.ArrowDown ? 1 : 0) - touch.my;
   const s = hiding ? 0 : (held.KeyD ? 1 : 0) - (held.KeyA ? 1 : 0) + touch.mx;
   P.a += ((held.ArrowRight ? 1 : 0) - (held.ArrowLeft || held.KeyQ ? 1 : 0)) * 2.6 * dt;
   const moving = Math.hypot(f, s) > .08;
   const wantRun = (held.ShiftLeft || held.ShiftRight || input.touchRun) && moving;
-  if (wantRun && P.crouch) { P.crouch = false; $('crouchBtn').classList.remove('on'); }   // running stands you up
+  if (wantRun && P.crouch) { P.crouch = false; $('crouchBtn').classList.remove('on'); }
   const running = wantRun && !P.tired && P.stamina > 0;
   P.stamina = clamp(P.stamina + (running ? -24 : 15) * dt, 0, 100);
   if (P.stamina <= 0) P.tired = true; if (P.tired && P.stamina > 30) P.tired = false;
   const speed = running ? CONFIG.runSpeed : P.crouch ? CONFIG.crouchSpeed : CONFIG.walkSpeed, len = Math.max(1, Math.hypot(f, s));
-  P.camZ += ((P.crouch ? .3 : .5) - P.camZ) * Math.min(1, dt * 10);
+  P.camZ += ((P.hidden && P.hidden.kind === 'bed' ? .12 : P.crouch ? .3 : .5) - P.camZ) * Math.min(1, dt * 10);
   const dX = Math.cos(P.a), dY = Math.sin(P.a);
   const bx = P.x, by = P.y;
   if (!hiding) moveBy((dX * f - dY * s) / len * speed * dt, (dY * f + dX * s) / len * speed * dt);
-  if (moving && Math.hypot(P.x - bx, P.y - by) > speed * dt * .3) {   // no footsteps while pushing into a wall
+  if (moving && Math.hypot(P.x - bx, P.y - by) > speed * dt * .3) {
     P.bob += dt * (running ? 13 : P.crouch ? 5 : 9); P.stepT -= dt;
     if (P.stepT <= 0) { if (!P.crouch) sfx.step(running); P.stepT = running ? .3 : .45; }
-    // the noise he can hear: running is loud, walking is quiet, crouching is silent
-    if ((P.noiseT -= dt) <= 0 && !P.crouch) { makeNoise(P.x, P.y, running ? CONFIG.runNoise : CONFIG.walkNoise); P.noiseT = .45; }
+    if ((P.noiseT -= dt) <= 0 && !P.crouch) { makeNoise(P.f, P.x, P.y, running ? CONFIG.runNoise : CONFIG.walkNoise); P.noiseT = .45; }
   }
   if (hiding) { P.hideT += dt; if ((P.stepT -= dt) <= 0) { sfx.breath(); P.stepT = 2.8; } }
+  // stairs
+  const st = STAIRS.get(key3(P.f, Math.floor(P.x), Math.floor(P.y)));
+  if (st && st.arrive && !hiding) changeFloor(st);
 
-  // keys
-  for (const k of keys.list) if (!k.got && Math.hypot(k.x - P.x, k.y - P.y) < .55) {
-    k.got = true; keys.held++; sfx.key(); drawKeyHud(); makeNoise(P.x, P.y, 6);
-    if (keys.held >= CONFIG.keysNeeded) { sfx.open(); say('ALL 5 KEYS! Follow the green arrow to the EXIT!', 5); exitRepath = 0; }
-    else say(`Key ${keys.held} of ${CONFIG.keysNeeded}. The jingle might have been heard...`, 3);
+  // picking things up
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i]; if (it.f !== P.f || Math.hypot(it.x - P.x, it.y - P.y) > .55) continue;
+    items.splice(i, 1);
+    if (it.kind === 'key') {
+      keys.held++; sfx.key(); drawKeyHud(); makeNoise(P.f, P.x, P.y, 6);
+      if (keys.held >= CONFIG.keysNeeded) { sfx.open(); say('ALL 5 KEYS! Follow the green arrow to the FRONT DOOR!', 5); exitRepath = 0; }
+      else say(`Key ${keys.held} of ${CONFIG.keysNeeded}. The jingle might have been heard...`, 3);
+    } else if (it.kind === 'gun') {
+      P.hasGun = true; P.darts += CONFIG.gunDarts; sfx.pickup(); updateAmmo();
+      say(`You found a BLOWGUN with ${CONFIG.gunDarts} darts! ${isTouch ? 'Tap SHOOT' : 'Click'} to knock Damian out.`, 4.5);
+    } else {
+      P.darts += CONFIG.dartsPerPack; sfx.pickup(); updateAmmo();
+      say(P.hasGun ? `+${CONFIG.dartsPerPack} darts.` : `+${CONFIG.dartsPerPack} darts. Now find the blowgun...`, 2.5);
+    }
   }
+  updateDarts(dt);
 
-  // exit
-  const nearExit = P.x < 1.75 && P.y > 11.8 && P.y < 14.2;
-  if (nearExit) {
+  // the front door
+  if (P.f === EXIT.f && Math.hypot(P.x - (EXIT.x + .5), P.y - (EXIT.y + .5)) < 1.3) {
     if (keys.held >= CONFIG.keysNeeded) return win();
-    if (now > lockedMsgT) { sfx.locked(); makeNoise(P.x, P.y, 9); say(`The exit is locked. You have ${keys.held} of ${CONFIG.keysNeeded} keys. That rattle was loud...`, 3); lockedMsgT = now + 3000; }
+    if (now > lockedMsgT) { sfx.locked(); makeNoise(P.f, P.x, P.y, 9); say(`The front door has 5 locks. You have ${keys.held} key${keys.held === 1 ? '' : 's'}. That rattle was loud...`, 3); lockedMsgT = now + 3000; }
   }
   if (keys.held >= CONFIG.keysNeeded && (exitRepath -= dt) <= 0) {
-    exitRepath = .4; exitField = exitField || bfs(EXIT_CELL.x, EXIT_CELL.y);
-    const path = pathFrom(exitField, Math.floor(P.x), Math.floor(P.y));
-    const c = path[Math.min(2, path.length - 1)]; arrowTarget = c !== undefined ? { x: c % MW + .5, y: ((c / MW) | 0) + .5 } : null;
-    if (path.length <= 2) arrowTarget = { x: .5, y: 12.9 };
+    exitRepath = .4; exitField = exitField || bfs3(node(EXIT.f, EXIT.x - 1, EXIT.y));
+    const path = pathFrom(exitField, node(P.f, Math.floor(P.x), Math.floor(P.y)));
+    let target = null;
+    for (let i = 1; i < Math.min(4, path.length); i++) { if (nodeF(path[i]) !== P.f) break; target = path[i]; }
+    arrowTarget = target !== null ? { x: nodeX(target) + .5, y: nodeY(target) + .5 } : (P.f === EXIT.f ? { x: EXIT.x + .5, y: EXIT.y + .5 } : null);
   }
 
   // Damian
   const awake = now >= D.awakeAt;
   if (awake) { hearNoises(); thinkDamian(dt, now); } else noises.length = 0;
-  const straight = Math.hypot(D.x - P.x, D.y - P.y);
-  // caught: walking into him, or him opening the locker he saw you climb into
-  if (awake && !P.hidden && straight < .55) return caught();
-  if (awake && P.hidden && D.knowsHide === P.hidden && Math.hypot(D.x - (P.hidden.sx + .5), D.y - (P.hidden.sy + .5)) < .8) return caught();
-  // how tense things are: full blast in a chase, a low dread when he's close but doesn't know where you are
-  const prox = awake ? clamp(1 - (straight - 1) / 12, 0, 1) : 0;
+  const same = D.f === P.f, straight = same ? Math.hypot(D.x - P.x, D.y - P.y) : 99;
+  const out = D.mode === 'stunned';
+  if (awake && !out && same && !P.hidden && straight < .55) return caught();
+  if (awake && !out && P.hidden && D.knowsHide === P.hidden && D.f === P.hidden.f && Math.hypot(D.x - (P.hidden.sx + .5), D.y - (P.hidden.sy + .5)) < .8) return caught();
+  const prox = awake && !out ? clamp(1 - (straight - 1) / 12, 0, 1) : 0;
   const target = D.mode === 'chase' ? Math.max(prox, .4) : D.mode === 'check' ? Math.max(prox, .3) : D.mode === 'patrol' ? prox * .45 : prox * .65;
   danger += (target - danger) * Math.min(1, dt * 3);
 
-  // sounds that follow Damian
   if (AC) {
     chaseGain.gain.setTargetAtTime((D.mode === 'chase' ? danger * danger * .55 : danger * danger * .18), AC.currentTime, .15);
     heartT -= dt; if (danger > .05 && heartT <= 0) { sfx.heart(.2 + danger * .5); heartT = 1.15 - danger * .8; }
-    const rel = Math.atan2(D.y - P.y, D.x - P.x) - P.a, pan = Math.sin(rel);
-    // you can hear his footsteps coming, which is how you know when to hide
-    if (awake && (D.footT -= dt) <= 0) { sfx.dstep(.55 / (1 + straight * .4), pan); D.footT = D.mode === 'chase' ? .3 : .55; }
+    const rel = Math.atan2(D.y - P.y, D.x - P.x) - P.a, pan = same ? Math.sin(rel) : 0;
+    // his footsteps: clear on your floor, a muffled thump through the floorboards on another
+    if (awake && !out && (D.footT -= dt) <= 0) { sfx.dstep(same ? .55 / (1 + straight * .4) : .06, pan); D.footT = D.mode === 'chase' ? .3 : .55; }
     D.voiceT -= dt;
-    if (awake && D.mode !== 'patrol' && D.voiceT <= 0 && straight < 15) {
+    if (awake && !out && same && D.mode !== 'patrol' && D.voiceT <= 0 && straight < 15) {
       playVoice(clamp(1.4 / (1 + straight * .35), .08, 1), pan, .72 + Math.random() * .22);
       D.voiceT = 3 + Math.random() * 4 - danger * 1.5;
     }
   }
   if (!awake && !D.stung && D.awakeAt - now < 1200) { D.stung = true; sfx.sting(); say('He\'s awake. He\'s hunting you.', 2.5); }
-  updateStatus();
+  updateStatus(now);
 
-  // light flicker (more often when he's close)
   if ((flickerT -= dt) <= 0) {
     flicker = Math.random() < .25 + danger * .5 ? .35 + Math.random() * .4 : 1;
     flickerT = flicker < 1 ? .05 + Math.random() * .1 : .5 + Math.random() * (3 - danger * 2.4);
@@ -914,39 +1164,45 @@ function update(dt, now) {
 /* =====================================================================
    RENDER (raycasting, like the old-school 3D games)
    ===================================================================== */
-const FOCAL = VW / 2 / .66;   // matches the 66 degree field of view
+const FOCAL = VW / 2 / .66;
 function lightAt(dist, camX) {
   const cone = Math.exp(-camX * camX * 2.4);
-  if (!P.light) return clamp((.03 + .4 / (1 + dist * dist * .6)) * flicker, 0, 1);   // flashlight off: you only see right in front of you
+  if (!P.light) return clamp((.03 + .4 / (1 + dist * dist * .6)) * flicker, 0, 1);
   const fall = 1 / (1 + dist * dist * .11);
   return clamp((.045 + 1.25 * fall * (.3 + .7 * cone)) * flicker, 0, 1);
 }
-// The HUD line that tells you what he knows, plus the hide prompt.
-function updateStatus() {
+function updateStatus(now) {
   const st = $('status'); let cls = '', text = '';
-  if (P.hidden) { cls = D.mode === 'check' ? 'danger' : 'hidden'; text = D.mode === 'check' ? '⚠ He\'s coming to check your locker!' : '🔒 Hidden in a locker'; }
+  const spot = P.hidden ? (P.hidden.kind === 'bed' ? 'under the bed' : 'in the wardrobe') : '';
+  if (D.mode === 'stunned') { cls = 'hidden'; text = `😵 Damian is knocked out (${Math.ceil((D.stunUntil - now) / 1000)}s)`; }
+  else if (P.hidden) { cls = D.mode === 'check' ? 'danger' : 'hidden'; text = D.mode === 'check' ? '⚠ He\'s coming to check your hiding spot!' : `🔒 Hiding ${spot}`; }
   else if (D.mode === 'chase') { cls = 'seen'; text = D.lostT > 0 ? '👁 He\'s right behind you' : '👁 HE SEES YOU'; }
-  else if (D.mode === 'check') { cls = 'danger'; text = '⚠ He\'s checking the lockers'; }
+  else if (D.mode === 'check') { cls = 'danger'; text = '⚠ He\'s checking the hiding spots'; }
   else if (D.mode === 'search') { cls = 'heard'; text = '❓ He\'s searching for you'; }
   else if (D.mode === 'investigate') { cls = 'heard'; text = '👂 He heard something'; }
   st.className = cls; st.style.display = cls ? 'block' : 'none'; if (st.textContent !== text) st.textContent = text;
-  const h = nearHide(), pr = $('prompt'), hb = $('hideBtn');
-  const label = P.hidden ? 'Press E to get out' : h ? 'Press E to hide in the locker' : '';
+  const door = !P.hidden && doorInFront(), h = !P.hidden && nearHide();
+  let label = '';
+  if (P.hidden) label = 'E: get out';
+  else if (door) label = isDoorOpen(P.f, door.x, door.y) ? 'E: close the door' : 'E: open the door';
+  else if (h) label = h.kind === 'bed' ? 'E: hide under the bed' : 'E: hide in the wardrobe';
+  const pr = $('prompt'), hb = $('hideBtn');
   pr.style.display = label && !isTouch ? 'block' : 'none'; if (pr.textContent !== label) pr.textContent = label;
-  hb.style.display = h ? 'block' : 'none'; hb.textContent = P.hidden ? 'LEAVE' : 'HIDE';
+  hb.style.display = label ? 'block' : 'none'; hb.textContent = P.hidden ? 'LEAVE' : door ? 'DOOR' : 'HIDE';
   $('crouchTag').style.display = P.crouch ? 'block' : 'none';
+  $('crosshair').style.display = P.hasGun && !P.hidden ? 'block' : 'none';
+  const ft = '📍 ' + FL[P.f].name; if ($('floorTag').textContent !== ft) $('floorTag').textContent = ft;
 }
 function render(now) {
+  const F = FL[P.f], fM = F.M;
   const dX = Math.cos(P.a), dY = Math.sin(P.a), plX = -dY * .66, plY = dX * .66;
   const shake = danger > .55 && D.mode === 'chase' ? (danger - .55) * 9 : 0;
   const horizon = VH / 2 + P.pitch + Math.sin(P.bob) * 3 + (Math.random() - .5) * shake;
-  // ceiling + floor
   const fl = v => Math.round(v * flicker);
-  let g = ctx.createLinearGradient(0, 0, 0, horizon); g.addColorStop(0, `rgb(${fl(22)},${fl(22)},${fl(26)})`); g.addColorStop(1, '#000');
+  let g = ctx.createLinearGradient(0, 0, 0, horizon); g.addColorStop(0, `rgb(${fl(F.ceil[0])},${fl(F.ceil[1])},${fl(F.ceil[2])})`); g.addColorStop(1, '#000');
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, horizon + 1);
-  g = ctx.createLinearGradient(0, horizon, 0, VH); g.addColorStop(0, '#000'); g.addColorStop(1, `rgb(${fl(46)},${fl(40)},${fl(32)})`);
+  g = ctx.createLinearGradient(0, horizon, 0, VH); g.addColorStop(0, '#000'); g.addColorStop(1, `rgb(${fl(F.ground[0])},${fl(F.ground[1])},${fl(F.ground[2])})`);
   ctx.fillStyle = g; ctx.fillRect(0, horizon, VW, VH - horizon);
-  // walls
   const px = P.x, py = P.y;
   for (let x = 0; x < VW; x++) {
     const camX = 2 * x / VW - 1, rdx = dX + plX * camX, rdy = dY + plY * camX;
@@ -958,49 +1214,53 @@ function render(now) {
     for (let i = 0; i < 80 && !hit; i++) {
       fx = mx; fy = my;
       if (sdx < sdy) { sdx += ddx; mx += stx; side = 0; } else { sdy += ddy; my += sty; side = 1; }
-      hit = (mx < 0 || my < 0 || mx >= MW || my >= MH) ? 1 : M[my][mx];
+      hit = inB(mx, my) ? fM[my][mx] : 1;
+      if (hit === 10 && isDoorOpen(P.f, mx, my)) hit = 0;   // open doors don't block
     }
     const dist = Math.max(.0001, side === 0 ? sdx - ddx : sdy - ddy);
     zbuf[x] = dist;
-    const lineH = FOCAL / dist, top = horizon - lineH * (1 - P.camZ);   // camZ: eye height (lower when crouching)
+    const lineH = FOCAL / dist, top = horizon - lineH * (1 - P.camZ);
     let wx = side === 0 ? py + dist * rdy : px + dist * rdx; wx -= Math.floor(wx);
     let tx = Math.floor(wx * 64); if ((side === 0 && rdx < 0) || (side === 1 && rdy > 0)) tx = 63 - tx;
-    ctx.drawImage(wallTexture(hit, mx, my, fx, fy), tx, 0, 1, 64, x, top, 1, lineH);
+    ctx.drawImage(wallTexture(P.f, hit, mx, my, fx, fy), tx, 0, 1, 64, x, top, 1, lineH);
     let light = lightAt(dist, camX) * (side ? .78 : 1);
-    if (hit === 9) light = Math.max(light, .5);
+    if (hit === 9) light = Math.max(light, .45);
     ctx.fillStyle = SHADE[63 - Math.round(light * 63)]; ctx.fillRect(x, top, 1, lineH);
   }
-  // sprites (keys + Damian), far to near
+  // sprites on this floor, far to near: furniture, items, darts, Damian
   const sprites = [];
-  for (const k of keys.list) if (!k.got) sprites.push({ x: k.x, y: k.y, kind: 'key', k });
-  if (state === 'play') sprites.push({ x: D.x, y: D.y, kind: 'damian' });
-  sprites.forEach(s => s.d = (s.x - px) ** 2 + (s.y - py) ** 2);
-  sprites.sort((a, b) => b.d - a.d);
+  for (const p of PROPS) if (p.f === P.f) sprites.push({ x: p.x + .5, y: p.y + .5, kind: 'prop', p });
+  for (const it of items) if (it.f === P.f) sprites.push({ x: it.x, y: it.y, kind: it.kind, it });
+  for (const d of darts) if (d.f === P.f) sprites.push({ x: d.x, y: d.y, kind: 'dart', d });
+  if (state === 'play' && D.f === P.f) sprites.push({ x: D.x, y: D.y, kind: 'damian' });
+  sprites.forEach(s => s.dd = (s.x - px) ** 2 + (s.y - py) ** 2);
+  sprites.sort((a, b) => b.dd - a.dd);
   const t = now / 1000;
   for (const s of sprites) {
-    if (s.kind === 'key') {
-      drawSprite(KEY_SPRITE.levels, s.x, s.y, .32, -.12 + Math.sin(t * 2.5 + s.k.phase) * .04, Math.max(.15, Math.abs(Math.cos(t * 2 + s.k.phase))), .55, horizon, dX, dY, plX, plY);
-    } else {
-      const lv = HEADS[headIndex].levels, sh = danger > .5 ? (Math.random() - .5) * .06 : 0;
-      drawSprite(lv, s.x + sh, s.y + sh, 1.05, Math.sin(t * 3) * .04 - .02, 1, .1, horizon, dX, dY, plX, plY);
+    if (s.kind === 'prop') drawSprite(PROP_SPR[s.p.type].levels, s.x, s.y, 1, 0, 1, 0, horizon, dX, dY, plX, plY);
+    else if (s.kind === 'key') drawSprite(KEY_SPRITE.levels, s.x, s.y, .32, -.18 + Math.sin(t * 2.5 + s.it.phase) * .04, Math.max(.15, Math.abs(Math.cos(t * 2 + s.it.phase))), .55, horizon, dX, dY, plX, plY);
+    else if (s.kind === 'gun') drawSprite(GUN_SPR.levels, s.x, s.y, .4, -.22 + Math.sin(t * 2) * .03, 1, .55, horizon, dX, dY, plX, plY);
+    else if (s.kind === 'darts') drawSprite(DARTS_SPR.levels, s.x, s.y, .32, -.24 + Math.sin(t * 2.3 + s.it.phase) * .03, 1, .55, horizon, dX, dY, plX, plY);
+    else if (s.kind === 'dart') drawSprite(DART_SPR.levels, s.x, s.y, .14, s.d.z, 1, .6, horizon, dX, dY, plX, plY);
+    else {
+      const head = HEADS[headIndex];
+      if (D.mode === 'stunned') drawSprite(head.sleep, s.x, s.y, .85, -.36, 1, .08, horizon, dX, dY, plX, plY);   // slumped on the floor
+      else { const sh = danger > .5 ? (Math.random() - .5) * .06 : 0; drawSprite(head.levels, s.x + sh, s.y + sh, 1.05, Math.sin(t * 3) * .04 - .02, 1, .1, horizon, dX, dY, plX, plY); }
     }
   }
-  // peeking out through the locker slats
+  // hiding: peek out through wardrobe slats, or from under the bed
   if (P.hidden) {
-    ctx.fillStyle = 'rgba(8,12,12,.97)';
-    for (let y = 0; y < VH; y += 18) ctx.fillRect(0, y, VW, 12);
-    ctx.fillRect(0, 0, VW * .18, VH); ctx.fillRect(VW * .82, 0, VW * .18, VH);
+    ctx.fillStyle = 'rgba(8,6,4,.97)';
+    if (P.hidden.kind === 'bed') { ctx.fillRect(0, 0, VW, VH * .6); const gg = ctx.createLinearGradient(0, VH * .6, 0, VH * .7); gg.addColorStop(0, 'rgba(8,6,4,.97)'); gg.addColorStop(1, 'rgba(8,6,4,0)'); ctx.fillStyle = gg; ctx.fillRect(0, VH * .6, VW, VH * .1); }
+    else { for (let y = 0; y < VH; y += 18) ctx.fillRect(0, y, VW, 12); ctx.fillRect(0, 0, VW * .18, VH); ctx.fillRect(VW * .82, 0, VW * .18, VH); }
   }
-  // TV static when he's close
-  if (danger > .35 && D.mode !== 'patrol') {
+  if (danger > .35 && D.mode === 'chase') {
     const n = Math.floor((danger - .35) * 900);
     for (let i = 0; i < n; i++) { const v = Math.random() * 255 | 0; ctx.fillStyle = `rgba(${v},${v},${v},.35)`; ctx.fillRect(Math.random() * VW | 0, Math.random() * VH | 0, 2, 1); }
   }
-  // flashlight vignette
-  g = ctx.createRadialGradient(VW / 2, VH / 2, VH * .15, VW / 2, VH / 2, VW * .62);   // flashlight follows the view
+  g = ctx.createRadialGradient(VW / 2, VH / 2, VH * .15, VW / 2, VH / 2, VW * .62);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.92)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
-
   $('danger').style.opacity = (danger * (.55 + .45 * Math.sin(t * (4 + danger * 8)) ** 2)).toFixed(3);
   view.style.transform = shake ? `translate(${(Math.random() - .5) * shake * 2}px,${(Math.random() - .5) * shake * 2}px)` : '';
   drawHud();
@@ -1023,20 +1283,27 @@ function drawSprite(levels, sx, sy, scale, zOff, widthMul, minLight, horizon, dX
 }
 
 /* ---- HUD ---- */
-let miniBase = null;
+const MINI = [];
 function buildMini() {
-  miniBase = mk(MW * 5, MH * 5); const x = miniBase.getContext('2d');
-  for (let y = 0; y < MH; y++) for (let xx = 0; xx < MW; xx++) {
-    const c = M[y][xx]; x.fillStyle = c === 0 ? '#1a1a1a' : c === 9 ? '#a22' : c === 1 ? '#555' : '#3a2f22'; x.fillRect(xx * 5, y * 5, 5, 5);
-  }
+  FL.forEach((F, f) => {
+    const c = mk(MW * 5, MH * 5), x = c.getContext('2d');
+    for (let y = 0; y < MH; y++) for (let xx = 0; xx < MW; xx++) {
+      const m = F.M[y][xx], k = key3(f, xx, y);
+      x.fillStyle = STAIR_AT.has(k) ? '#2a5a9a' : PROP_AT.has(k) ? '#3a2f22' : m === 0 ? '#1a1a1a' : m === 9 ? '#a22' : m === 10 ? '#6a4a2a' : m === 16 ? '#2e4a2e' : m === 1 ? '#555' : '#3a2f22';
+      x.fillRect(xx * 5, y * 5, 5, 5);
+    }
+    MINI.push(c);
+  });
   const mini = $('mini'); mini.width = MW * 5; mini.height = MH * 5;
 }
 function drawHud() {
   const mini = $('mini'); mini.style.display = showMap ? 'block' : 'none';
-  $('hint').style.top = showMap ? '142px' : '12px';   // stays visible (and tappable) so the map can be brought back
+  $('hint').style.top = showMap ? '142px' : '12px';
+  $('floorTag').style.top = showMap ? '166px' : '36px';
   if (showMap) {
-    const x = mini.getContext('2d'); x.drawImage(miniBase, 0, 0);
-    if (keys.held >= CONFIG.keysNeeded) { x.fillStyle = '#3f3'; x.fillRect(0, 60, 5, 10); }
+    const x = mini.getContext('2d'); x.drawImage(MINI[P.f], 0, 0);
+    DOOR_OPEN.forEach(k => { const [f, dx, dy] = k.split(',').map(Number); if (f === P.f) { x.fillStyle = '#b08a5a'; x.fillRect(dx * 5 + 1, dy * 5 + 1, 3, 3); } });
+    if (keys.held >= CONFIG.keysNeeded && P.f === EXIT.f) { x.fillStyle = '#3f3'; x.fillRect(EXIT.x * 5, EXIT.y * 5, 5, 5); }
     x.fillStyle = '#fff'; x.beginPath(); x.arc(P.x * 5, P.y * 5, 2.4, 0, TAU); x.fill();
     x.strokeStyle = '#fff'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(P.x * 5, P.y * 5); x.lineTo(P.x * 5 + Math.cos(P.a) * 7, P.y * 5 + Math.sin(P.a) * 7); x.stroke();
   }
@@ -1044,8 +1311,7 @@ function drawHud() {
   const arrow = $('arrow');
   if (keys.held >= CONFIG.keysNeeded && arrowTarget) {
     arrow.style.display = 'block';
-    const ang = Math.atan2(arrowTarget.y - P.y, arrowTarget.x - P.x) - P.a;
-    arrow.style.transform = `rotate(${ang}rad)`;
+    arrow.style.transform = `rotate(${Math.atan2(arrowTarget.y - P.y, arrowTarget.x - P.x) - P.a}rad)`;
   } else arrow.style.display = 'none';
 }
 function drawArrow() {
@@ -1074,7 +1340,6 @@ const SCARE_SECONDS = 2.6, RETRY_DELAY = 1600;
 function drawScare(now) {
   const c = $('scare'), x = c.getContext('2d'), W = c.width, H = c.height, e = (now - scareT) / 1000;
   x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
-  // second half: he lunges even closer, switching to a different photo of him
   const lunge = e > 1.25, head = lunge ? HEADS[(headIndex + 3) % HEADS.length] : scareHead;
   const grow = Math.min(1, e / .12), size = Math.max(W, H) * (lunge ? 1.6 + (e - 1.25) * .5 : .55 + .75 * grow) * (1 + Math.sin(e * 40) * .03);
   const fade = clamp((SCARE_SECONDS - e) / .5, 0, 1), jit = 70 * (lunge ? 1.4 : 1) * fade;
@@ -1087,9 +1352,8 @@ function drawScare(now) {
 }
 function showDeathScreen() {
   $('scare').style.display = 'none'; state = 'dead';
-  $('deadStats').textContent = `Deaths: ${deaths}`; $('dead').hidden = false;
+  $('deadStats').textContent = `Deaths: ${deaths}${P.hasGun ? ' · You kept the blowgun.' : ''}`; $('dead').hidden = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  // The retry button unlocks after a moment, so a panicked click doesn't instantly restart the game.
   const btn = $('retryBtn'); btn.disabled = true; btn.textContent = '...';
   setTimeout(() => { if (state === 'dead') { btn.disabled = false; btn.textContent = 'TRY AGAIN'; } }, RETRY_DELAY);
   sfx.afterDeath();
@@ -1105,7 +1369,7 @@ function win() {
 function startPlaying(fresh) {
   ['title', 'dead', 'win', 'paused'].forEach(id => $(id).hidden = true);
   initAudio(); newLife(fresh);
-  if (AC && droneGain) droneGain.gain.setTargetAtTime(.07, AC.currentTime, .5);   // the drone was cut by the jumpscare
+  if (AC && droneGain) droneGain.gain.setTargetAtTime(.07, AC.currentTime, .5);
   $('hud').hidden = false; if (isTouch) $('touch').style.display = 'block';
   state = 'play'; lastT = performance.now(); lockMouse();
 }
@@ -1115,29 +1379,29 @@ function frame(now) {
   const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
   if (state === 'play') { update(dt, now); if (state === 'play') render(now); }
   else if (state === 'scare') drawScare(now);
-  else if (state === 'title' && HEADS.length) {
-    // slowly drift the camera down the hallway behind the title screen
-    P.a = Math.PI + Math.sin(now / 4000) * .4; render(now);
-  }
+  else if (state === 'title' && HEADS.length) { P.a = START.a + Math.sin(now / 4000) * .6; render(now); }
   requestAnimationFrame(frame);
 }
 
 /* ---- start up ---- */
 (async function boot() {
   resize(); addEventListener('resize', resize);
-  buildTextures(); KEY_SPRITE = keyLevels(); buildMini(); drawArrow(); drawKeyHud();
+  buildTextures(); buildSprites(); buildMini(); drawArrow(); drawKeyHud();
   const imgs = await Promise.all(CONFIG.photos.map(p => loadImage(p.src)));
-  imgs.forEach((im, i) => { if (im) { const head = makeHead(im, CONFIG.photos[i], 256); head.levels = headLevels(head); const big = makeHead(im, CONFIG.photos[i], 512); big.levels = null; HEADS.push(Object.assign(big, { levels: head.levels })); } });
-  if (!HEADS.length) { // no photos: a dark stand-in face so the game still works
+  imgs.forEach((im, i) => {
+    if (!im) return;
+    const small = makeHead(im, CONFIG.photos[i], 256), big = makeHead(im, CONFIG.photos[i], 512);
+    HEADS.push(Object.assign(big, { levels: headLevels(small, true), sleep: headLevels(small, false) }));
+  });
+  if (!HEADS.length) {
     const c = mk(256), x = c.getContext('2d'); x.fillStyle = '#2a1a14'; x.beginPath(); x.arc(128, 128, 115, 0, TAU); x.fill();
-    const head = { canvas: c, eyes: [[95, 115], [161, 115]], u: 66 }; head.levels = headLevels(head); HEADS.push(head);
+    const head = { canvas: c, eyes: [[95, 115], [161, 115]], u: 66 }; head.levels = headLevels(head, true); head.sleep = headLevels(head, false); HEADS.push(head);
     $('loading').textContent = 'Damian\'s photos are missing from the photos folder.';
-  } else $('loading').textContent = '';
+  } else { $('loading').textContent = ''; addPortraits(); }
   headIndex = 0;
   const tf = $('titleFace').getContext('2d'); tf.drawImage(HEADS[0].canvas, 0, 0, 300, 300);
   tf.save(); tf.scale(300 / HEADS[0].canvas.width, 300 / HEADS[0].canvas.width); glowEyes(tf, HEADS[0], 1, 1); tf.restore();
-  scatterKeys(); D.x = 16.5; D.y = 22.5;
-  // the volume and look-speed sliders on the title and pause screens stay in sync
+  scatterItems(); D.f = 0; D.x = 10.5; D.y = 10.5;
   const vols = document.querySelectorAll('.volSlider'), senses = document.querySelectorAll('.sensSlider');
   vols.forEach(v => { v.value = Math.round(volume * 100); v.oninput = () => { setVolume(v.value / 100); vols.forEach(o => o.value = v.value); }; });
   senses.forEach(v => { v.value = Math.round(lookSpeed * 100); v.oninput = () => { setLookSpeed(v.value / 100); senses.forEach(o => o.value = v.value); }; });
