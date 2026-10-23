@@ -79,6 +79,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .25s}
 #shootBtn{right:30px;bottom:200px;display:none;background:rgba(140,90,30,.55)}
 @keyframes pulse{50%{opacity:.55}}
+.modes{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.modes button{font-family:var(--horror);font-size:22px;letter-spacing:1px;background:#140000;border:2px solid #5a1010;color:#c8a0a0;padding:4px 16px;border-radius:8px}
+.modes button.on{border-color:var(--red);color:#fff;background:#3a0000;box-shadow:0 0 12px rgba(220,0,0,.5)}
+.modes button[data-mode=extreme].on{background:#6a0000;box-shadow:0 0 18px rgba(255,0,0,.8)}
+#skipHint{position:fixed;right:16px;bottom:14px;font-size:13px;color:rgba(255,255,255,.45);display:none;pointer-events:none}
+#endText{position:fixed;left:0;right:0;bottom:16%;text-align:center;font-family:var(--horror);font-size:clamp(26px,5vw,52px);color:#e9e2d0;
+  text-shadow:0 0 12px #000,0 0 4px #000;opacity:0;transition:opacity 1s;pointer-events:none;letter-spacing:2px}
 @media (max-height:640px){
   .screen{padding:8px 16px}
   .screen h1{font-size:clamp(34px,10vh,70px)}
@@ -117,6 +124,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   <button class="tbtn" id="shootBtn">SHOOT</button>
   <div id="lookHint">drag here to look</div></div>
 <canvas id="scare"></canvas>
+<div id="endText"></div><div id="skipHint">click to skip</div>
 
 <div class="screen" id="title">
   <h1>DAMIAN HORROR</h1>
@@ -148,6 +156,8 @@ button{font:inherit;color:inherit;cursor:pointer}
   <div class="warn">⚠ Loud jumpscares and screaming. Turn your volume down if you're wearing headphones.</div>
   <div class="vol">Volume <input type="range" class="volSlider" min="0" max="100" value="80"></div>
   <div class="vol">Look speed <input type="range" class="sensSlider" min="30" max="300" value="100"></div>
+  <div class="modes" id="modes"><button data-mode="normal">NORMAL</button><button data-mode="hard">HARD</button><button data-mode="extreme">EXTREME</button></div>
+  <p class="small" id="modeInfo"></p>
   <button class="big" id="startBtn">WAKE UP</button>
   <p class="small" id="loading">loading Damian...</p>
 </div>
@@ -224,6 +234,15 @@ const CONFIG = {
   shotgunNoise: 18,        // how far away he hears a shot
 };
 
+// Difficulty: how fast Damian is and how good his eyes and ears are. Extreme also turns every light in the house red.
+const MODES = {
+  normal:  { label: 'Normal',  speed: 1,    sight: 1,    angle: 0,  hear: 1,    memory: 1,   grace: 1,   hideCheck: 1,   red: false, info: 'Damian the way he was meant to be.' },
+  hard:    { label: 'Hard',    speed: 1.15, sight: 1.25, angle: 10, hear: 1.35, memory: 1.7, grace: .75, hideCheck: .7,  red: false, info: 'He\'s faster, sees farther, hears more and remembers where you went.' },
+  extreme: { label: 'Extreme', speed: 1.3,  sight: 1.5,  angle: 20, hear: 1.7,  memory: 2.4, grace: .5,  hideCheck: .45, red: true,  info: 'He\'s fast, he hears almost everything... and every light in the house is red.' },
+};
+let modeKey = 'normal';
+try { const m = localStorage.getItem('damianHorror.mode'); if (MODES[m]) modeKey = m; } catch (e) { }
+let MODE = MODES[modeKey];
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -589,6 +608,12 @@ function buildTextures() {
     for (let i = 0; i < 26; i++) { const px = r() * 64, py = r() * 64; x.fillStyle = r() < .5 ? '#b07a8a' : '#d8d0c0'; for (let k = 0; k < 4; k++) { x.beginPath(); x.arc(px + Math.cos(k * 1.57) * 1.6, py + Math.sin(k * 1.57) * 1.6, 1.3, 0, TAU); x.fill(); } x.fillStyle = '#6a8a5a'; x.fillRect(px - .5, py - .5, 1, 1); }
     grime(x, r, 50, 'rgba(70,50,30,.25)'); x.fillStyle = 'rgba(110,20,20,.35)'; x.beginPath(); x.ellipse(40, 44, 7, 10, .3, 0, TAU); x.fill();
   }, 92);
+  // outside the house (for the ending)
+  TEX.grass = tex((x, r) => { x.fillStyle = '#18240f'; x.fillRect(0, 0, 64, 64); for (let i = 0; i < 500; i++) { const v = r(); x.fillStyle = `rgb(${20 + v * 30 | 0},${34 + v * 40 | 0},${14 + v * 18 | 0})`; x.fillRect(r() * 64, r() * 64, 1, 2 + r() * 3); } }, 95);
+  TEX.gravel = tex((x, r) => { x.fillStyle = '#4a463e'; x.fillRect(0, 0, 64, 64); for (let i = 0; i < 400; i++) { const v = 50 + r() * 70 | 0; x.fillStyle = `rgb(${v},${v - 4},${v - 10})`; x.fillRect(r() * 64, r() * 64, 2, 2); } }, 96);
+  TEX.asphalt = tex((x, r) => { concrete(x, r, '#1e1e20'); }, 97);
+  TEX.siding = tex((x, r) => { x.fillStyle = '#5a5850'; x.fillRect(0, 0, 64, 64); for (let i = 0; i < 64; i += 8) { x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(0, i + 6, 64, 2); x.fillStyle = 'rgba(255,255,255,.05)'; x.fillRect(0, i, 64, 2); } grime(x, r, 70); }, 98);
+  TEX.apron = tex((x, r) => { x.fillStyle = '#cfc6b2'; x.fillRect(0, 0, 64, 64); for (let i = 0; i < 64; i += 6) { x.fillStyle = 'rgba(0,0,0,.06)'; x.fillRect(i, 0, 2, 64); } grime(x, r, 60, 'rgba(90,60,30,.25)'); x.fillStyle = 'rgba(120,15,15,.45)'; x.beginPath(); x.ellipse(24, 40, 6, 9, -.4, 0, TAU); x.fill(); x.beginPath(); x.ellipse(36, 22, 3, 4, 0, 0, TAU); x.fill(); }, 94);
   TEX.knit = tex((x, r) => { x.fillStyle = '#5a2a22'; x.fillRect(0, 0, 64, 64); x.strokeStyle = 'rgba(0,0,0,.3)'; for (let i = 0; i < 64; i += 4) { x.beginPath(); for (let j = 0; j <= 64; j += 4) x.lineTo(j, i + (j / 4 % 2) * 2); x.stroke(); } grime(x, r, 20); }, 93);
   TEX.clockFace = tex(x => { x.fillStyle = '#2a1a0c'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#d8d0b8'; x.beginPath(); x.arc(32, 32, 26, 0, TAU); x.fill(); x.strokeStyle = '#222'; x.lineWidth = 3; x.stroke(); x.beginPath(); x.moveTo(32, 32); x.lineTo(32, 12); x.moveTo(32, 32); x.lineTo(44, 38); x.stroke(); }, 38);
   const frontDoor = open => tex((x, r) => {   // the front door with 5 locks
@@ -742,6 +767,20 @@ const sfx = {
   doorClose(vol) { if (!AC) return; const t = AC.currentTime, v = vol === undefined ? .3 : vol; tone(t, 90, 45, .25, v); noiseHit(t, .15, 500, v); },
   stairs() { if (!AC) return; const t = AC.currentTime; for (let i = 0; i < 4; i++) noiseHit(t + i * .12, .08, 500, .08); },
   hide() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .25, 900, .2, 'bandpass'); tone(t, 200, 150, .2, .06, 'square'); },
+  gravel(vol) { if (!AC) return; const t = AC.currentTime; noiseHit(t, .1, 1800, vol, 'bandpass'); noiseHit(t + .02, .07, 700, vol * .6); },
+  // the getaway car: the starter cranks, then the engine idles and revs as you drive off
+  engine() {
+    if (!AC) return null;
+    const o = AC.createOscillator(), o2 = AC.createOscillator(), lp = AC.createBiquadFilter(), g = AC.createGain(), t = AC.currentTime;
+    o.type = 'sawtooth'; o2.type = 'square'; o.frequency.value = 36; o2.frequency.value = 18; lp.type = 'lowpass'; lp.frequency.value = 380;
+    o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(master); g.gain.setValueAtTime(0, t);
+    for (let i = 0; i < 4; i++) noiseHit(t + i * .13, .09, 300, .18);
+    g.gain.linearRampToValueAtTime(.2, t + .7); o.start(); o2.start();
+    return {
+      set(rev) { const n = AC.currentTime; o.frequency.setTargetAtTime(36 + rev * 95, n, .2); o2.frequency.setTargetAtTime(18 + rev * 47, n, .2); lp.frequency.setTargetAtTime(380 + rev * 1300, n, .2); g.gain.setTargetAtTime(.2 + rev * .08, n, .3); },
+      stop() { const n = AC.currentTime; g.gain.setTargetAtTime(0, n, .3); o.stop(n + 2); o2.stop(n + 2); },
+    };
+  },
   breath() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .9, 700, .05, 'bandpass'); noiseHit(t + 1.1, .7, 500, .035, 'bandpass'); },
   // a huge double-barrel BOOM: a sharp crack, a heavy low thump and a long echo through the house
   shotgun() {
@@ -899,7 +938,7 @@ function placeDamian() {
   for (let i = 0; i < field.dist.length; i++) if (field.dist[i] >= maxD * .7 && openFloor(nodeF(i), nodeX(i), nodeY(i))) far.push(i);
   const c = far[Math.floor(Math.random() * far.length)];
   D.f = nodeF(c); D.x = nodeX(c) + .5; D.y = nodeY(c) + .5; D.path = []; D.repath = 0; D.doorWait = 0; D.stunUntil = 0;
-  D.awakeAt = performance.now() + CONFIG.graceSeconds * 1000; D.stung = false; D.voiceT = 0;
+  D.awakeAt = performance.now() + CONFIG.graceSeconds * MODE.grace * 1000; D.stung = false; D.voiceT = 0;
   D.mode = 'patrol'; D.goal = null; D.goalKey = ''; D.lastSeen = null; D.lostT = 0; D.idleT = 0; D.knowsHide = null; D.heading = Math.random() * TAU;
   headIndex = (headIndex + 1) % HEADS.length; setDamianHead(headIndex);
 }
@@ -1116,14 +1155,14 @@ function lineOfSight(f, x0, y0, x1, y1) {
   for (let i = 1; i < steps; i++) { const t = i / steps; if (!passSight(f, Math.floor(x0 + (x1 - x0) * t), Math.floor(y0 + (y1 - y0) * t))) return false; }
   return true;
 }
-function sightRange() { let r = CONFIG.sightRange + .6 * keys.held; if (!P.light) r *= .5; if (P.crouch) r *= .75; return r; }
+function sightRange() { let r = (CONFIG.sightRange + .6 * keys.held) * MODE.sight; if (!P.light) r *= .5; if (P.crouch) r *= .75; return r; }
 function canSee() {
   if (P.hidden || D.f !== P.f || D.mode === 'stunned') return false;
   const dx = P.x - D.x, dy = P.y - D.y, d = Math.hypot(dx, dy);
   if (d < CONFIG.closeSense) return lineOfSight(P.f, D.x, D.y, P.x, P.y);
   if (d > sightRange()) return false;
   let ang = Math.atan2(dy, dx) - D.heading; ang = Math.atan2(Math.sin(ang), Math.cos(ang));
-  if (Math.abs(ang) > CONFIG.sightAngle * Math.PI / 180) return false;
+  if (Math.abs(ang) > (CONFIG.sightAngle + MODE.angle) * Math.PI / 180) return false;
   return lineOfSight(P.f, D.x, D.y, P.x, P.y);
 }
 // Noises travel through the house (path distance, up and down the stairs).
@@ -1134,8 +1173,9 @@ function hearNoises() {
   for (const n of noises) {
     if (D.mode === 'chase') break;
     const field = bfs3(nodeOf(n.f, n.x, n.y)), d = field.dist[nodeOf(D.f, D.x, D.y)];
-    if (d < 0 || d > n.r) continue;
-    if (Math.random() < clamp(1.2 - d / n.r, .12, 1)) investigate(n.f, n.x, n.y);
+    const R = n.r * MODE.hear;
+    if (d < 0 || d > R) continue;
+    if (Math.random() < clamp(1.2 - d / R, .12, 1)) investigate(n.f, n.x, n.y);
   }
   noises.length = 0;
 }
@@ -1174,6 +1214,7 @@ function startSearch(f, x, y) { D.mode = 'search'; D.searchT = 6 + Math.random()
 function damianDoorSound(open) { const near = D.f === P.f ? 1 / (1 + Math.hypot(D.x - P.x, D.y - P.y) * .35) : .15; open ? sfx.doorOpen(.3 * near) : sfx.doorClose(.3 * near); }
 function moveDamian(dt, speed) {
   if (!D.goal) return true;
+  speed *= MODE.speed;
   if (D.doorWait > 0) { D.doorWait -= dt; return false; }
   if ((D.repath -= dt) <= 0) {
     D.repath = .3; D.field = bfs3(nodeOf(D.goal.f, D.goal.x, D.goal.y));
@@ -1220,7 +1261,7 @@ function thinkDamian(dt, now) {
       else {
         D.lostT += dt;
         if (P.hidden && D.knowsHide === P.hidden) { D.mode = 'check'; break; }
-        if (D.lostT < CONFIG.memorySeconds) setGoal(P.f, P.hidden ? P.hidden.sx + .5 : P.x, P.hidden ? P.hidden.sy + .5 : P.y);
+        if (D.lostT < CONFIG.memorySeconds * MODE.memory) setGoal(P.f, P.hidden ? P.hidden.sx + .5 : P.x, P.hidden ? P.hidden.sy + .5 : P.y);
         else { startSearch(D.goal.f, D.goal.x, D.goal.y); say('You broke his line of sight. Keep moving...', 2.5); break; }
       }
       moveDamian(dt, chaseSpeed);
@@ -1246,7 +1287,7 @@ function thinkDamian(dt, now) {
       if (!D.goal) patrolGoal();
       if (moveDamian(dt, CONFIG.patrolSpeed)) { lookAround(dt); if ((D.idleT += dt) > 1.5 + Math.random() * 2) { D.idleT = 0; patrolGoal(); } }
   }
-  if (P.hidden && P.hideT > CONFIG.hideCheckSeconds && D.mode !== 'chase' && D.mode !== 'check') {
+  if (P.hidden && P.hideT > CONFIG.hideCheckSeconds * MODE.hideCheck &&D.mode !== 'chase' && D.mode !== 'check') {
     D.knowsHide = P.hidden; D.mode = 'check'; playVoice(.9, 0, 1, true, 'smell'); D.voiceT = 3; say('He heard you breathing... he\'s coming to check your hiding spot. GET OUT!', 4);
   }
 }
@@ -1672,6 +1713,24 @@ function bulbSpots() {
   return spots;
 }
 const BULBS = [], LIGHT_POOL = [];
+let LIGHT_TINT = [1, .84, .54];
+// Normal lights are warm and yellow; in Extreme mode every light in the house glows red.
+function applyLightMode() {
+  if (!renderer) return;
+  const red = MODE.red;
+  LIGHT_TINT = red ? [1, .14, .1] : [1, .84, .54];
+  LIGHT_POOL.forEach(l => l.color.setHex(red ? 0xff2414 : 0xffbe78));
+  BULBS.forEach(b => b.glow.material.color.setHex(red ? 0xff3020 : 0xffffff));
+  LAMPS.forEach(l => l.light.color.setHex(red ? 0xff1a0a : 0xff6a20));
+  FIRES.forEach(p => p.material.color.setHex(red ? 0xff2010 : 0xff7a20));
+  flashlight.color.setHex(red ? 0xff6a5a : 0xfff0d0);
+  ambient.color.setHex(red ? 0xa04040 : 0x8890a8);
+}
+function setMode(k) {
+  modeKey = k; MODE = MODES[k]; try { localStorage.setItem('damianHorror.mode', k); } catch (e) { }
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === k));
+  $('modeInfo').textContent = MODE.info; applyLightMode();
+}
 function glowTexture() {
   const c = mk(64), x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
   g.addColorStop(0, 'rgba(255,220,150,.9)'); g.addColorStop(.25, 'rgba(255,190,110,.35)'); g.addColorStop(1, 'rgba(255,170,90,0)');
@@ -1691,42 +1750,72 @@ function buildLamps() {
 }
 /* ---- Damian: a hunched old granny in a nightgown, slippers and a shawl, carrying a bat... with Damian's face ---- */
 let DM = null;   // his body parts, for animating
-function limb(parent, x, y, z, upperLen, lowerLen, upperMat, lowerMat, r) {   // a shoulder/hip joint with an elbow/knee
-  const top = new THREE.Group(); top.position.set(x, y, z); parent.add(top);
-  cyl(top, r, upperLen, 0, -upperLen / 2, 0, upperMat, 8);
-  const mid = new THREE.Group(); mid.position.y = -upperLen; top.add(mid);
-  cyl(mid, r * .85, lowerLen, 0, -lowerLen / 2, 0, lowerMat, 8);
-  return { top, mid };
+// a tapered limb segment hanging down from a joint
+function taper(parent, rTop, rBot, len, m, seg) { const me = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, len, seg || 10), m); me.position.y = -len / 2; parent.add(me); return me; }
+function joint(parent, x, y, z) { const j = new THREE.Group(); j.position.set(x, y, z); parent.add(j); return j; }
+// a lathe (turned) shape with cloth folds that get deeper toward the bottom
+function cloth(points, m, folds, amp, phiStart, phiLength) {
+  const geo = new THREE.LatheGeometry(points.map(([r, y]) => new THREE.Vector2(r, y)), 28, phiStart || 0, phiLength || TAU), p = geo.attributes.position, top = points[points.length - 1][1];
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(x, z), k = 1 + amp * Math.sin(a * folds + y * 3) * (1 - y / top);
+    p.setX(i, x * k); p.setZ(i, z * k);
+  }
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, m);
 }
 function buildDamian() {
-  const skin = mat(0xd9b49a), dress = mat(TEX.dress), knit = mat(TEX.knit), hair = mat(0xbab6ae), slipper = mat(0x5a4a7a), wood = mat(TEX.wood);
+  const skin = mat(0xd2ab92), dress = mat(TEX.dress, { side: THREE.DoubleSide }), knit = mat(TEX.knit, { side: THREE.DoubleSide }), apron = mat(TEX.apron, { side: THREE.DoubleSide });
+  const hair = mat(0xb9b5ad, { shininess: 20 }), slipper = mat(0x5a4a7a), wood = mat(TEX.wood);
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body); world.add(g);
-  // legs in slippers, under the nightgown
-  const legs = [-1, 1].map(s => { const L = limb(body, s * .09, .52, 0, .26, .24, skin, skin, .045); box(L.mid, .1, .06, .22, 0, -.25, .05, slipper); return L; });
-  const skirt = new THREE.Mesh(new THREE.LatheGeometry([[.33, 0], [.31, .16], [.27, .36], [.22, .56], [.19, .64]].map(([r, y]) => new THREE.Vector2(r, y)), 16), dress);
-  skirt.position.y = .3; body.add(skirt);
-  // hunched-over upper body
-  const torso = new THREE.Group(); torso.position.y = .92; torso.rotation.x = .42; body.add(torso);
-  torso.add(new THREE.Mesh(new THREE.LatheGeometry([[.19, 0], [.21, .12], [.2, .28], [.15, .38], [.06, .44]].map(([r, y]) => new THREE.Vector2(r, y)), 16), dress));
-  const shawl = new THREE.Mesh(new THREE.SphereGeometry(.26, 12, 8), knit); shawl.scale.set(1, .45, .85); shawl.position.y = .34; torso.add(shawl);
-  // long thin arms; she carries a wooden bat in her right hand
-  const arms = [-1, 1].map(s => {
-    const A = limb(torso, s * .22, .33, 0, .3, .27, dress, skin, .042);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(.048, 8, 6), skin); hand.position.y = -.29; A.mid.add(hand);
-    return A;
+  // thin old legs with bony knees, in fuzzy slippers
+  const legs = [-1, 1].map(s => {
+    const hip = joint(body, s * .085, .6, 0);
+    taper(hip, .058, .047, .29, skin);
+    const knee = joint(hip, 0, -.29, 0); knee.add(new THREE.Mesh(new THREE.SphereGeometry(.046, 10, 8), skin));
+    taper(knee, .044, .031, .27, skin);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), slipper); foot.scale.set(.78, .5, 1.6); foot.position.set(0, -.29, .06); knee.add(foot);
+    return { top: hip, mid: knee };
   });
-  const bat = cyl(arms[1].mid, .035, .78, 0, -.62, .05, wood, 8); bat.geometry = new THREE.CylinderGeometry(.04, .02, .78, 8);
-  // her head: grey hair in a bun, and Damian's face
-  cyl(torso, .05, .1, 0, .47, .02, skin, 8);
-  const head = new THREE.Group(); head.position.set(0, .56, .03); head.rotation.x = -.42; head.scale.setScalar(1.6); torso.add(head);
-  const skull = new THREE.Mesh(new THREE.SphereGeometry(.15, 16, 12), skin); skull.scale.set(1, 1.1, 1); head.add(skull);
-  const cap = new THREE.Mesh(new THREE.SphereGeometry(.158, 16, 10, 0, TAU, 0, .95), hair); cap.scale.set(1, 1.1, 1); head.add(cap);
-  const back = new THREE.Mesh(new THREE.SphereGeometry(.156, 16, 10, Math.PI, Math.PI, 0, 2.1), hair); back.scale.set(1, 1.1, 1); head.add(back);
-  const bun = new THREE.Mesh(new THREE.SphereGeometry(.075, 10, 8), hair); bun.position.set(0, .11, -.13); head.add(bun);
-  const faceGeo = r => new THREE.SphereGeometry(r, 18, 14, Math.PI / 2 - .9, 1.8, .5, 1.85);
-  const face = new THREE.Mesh(faceGeo(.163), new THREE.MeshPhongMaterial({ transparent: true, alphaTest: .3, shininess: 4 })); face.scale.set(1, 1.1, 1); head.add(face);
-  const eyes = new THREE.Mesh(faceGeo(.166), new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); eyes.scale.set(1, 1.1, 1); head.add(eyes);
-  DM = { g, body, legs, arms, torso, head, face, eyes, fall: 0, walk: 0 };
+  // the long nightgown and apron hang from the waist and sway as she moves
+  const hem = joint(body, 0, .99, 0);
+  const skirt = cloth([[.36, 0], [.35, .06], [.32, .22], [.28, .4], [.245, .56], [.22, .64], [.2, .69]], dress, 9, .07); skirt.position.y = -.69; hem.add(skirt);
+  const ap = cloth([[.33, .1], [.3, .26], [.265, .42], [.235, .56], [.215, .64]], apron, 7, .05, -1, 2); ap.scale.set(1.04, 1, 1.04); ap.position.y = -.69; hem.add(ap);
+  // a hunched, curved back
+  const lower = joint(body, 0, .98, 0); lower.rotation.x = .22;
+  lower.add(cloth([[.2, 0], [.215, .1], [.212, .21]], dress, 6, .02));
+  const upper = joint(lower, 0, .2, 0); upper.rotation.x = .32;
+  upper.add(cloth([[.212, 0], [.205, .09], [.185, .17], [.14, .24], [.08, .29], [.05, .31]], dress, 6, .02));
+  const hump = new THREE.Mesh(new THREE.SphereGeometry(.14, 14, 10), dress); hump.scale.set(1.2, .8, .7); hump.position.set(0, .16, -.07); upper.add(hump);
+  // a knitted shawl over her shoulders, with the ends hanging down in front
+  const shawl = new THREE.Mesh(new THREE.SphereGeometry(.245, 18, 10, 0, TAU, 0, 1.45), knit); shawl.scale.set(1.06, .82, .96); shawl.position.y = .1; upper.add(shawl);
+  const tails = [-1, 1].map(s => { const j = joint(upper, s * .1, .12, .16); const b = box(j, .085, .32, .02, 0, -.16, 0, knit); b.rotation.z = s * .08; return j; });
+  // long thin arms with wrinkly hands; a wooden bat in her right hand
+  const arms = [-1, 1].map(s => {
+    const sh = joint(upper, s * .205, .2, 0);
+    sh.add(new THREE.Mesh(new THREE.SphereGeometry(.06, 10, 8), dress));
+    taper(sh, .052, .043, .27, dress);
+    const el = joint(sh, 0, -.27, 0); el.add(new THREE.Mesh(new THREE.SphereGeometry(.042, 10, 8), dress));
+    const cuff = new THREE.Mesh(new THREE.TorusGeometry(.036, .01, 6, 12), apron); cuff.rotation.x = Math.PI / 2; cuff.position.y = -.02; el.add(cuff);
+    taper(el, .034, .025, .24, skin);
+    const wr = joint(el, 0, -.24, 0);
+    box(wr, .065, .075, .028, 0, -.04, 0, skin);
+    for (let i = 0; i < 4; i++) { const fg = cyl(wr, .0085, .065, -.024 + i * .016, -.1, .01, skin, 6); fg.rotation.x = .5; }
+    const th = cyl(wr, .009, .05, s * -.04, -.05, .012, skin, 6); th.rotation.z = s * .7;
+    return { top: sh, mid: el, wrist: wr };
+  });
+  const bat = new THREE.Mesh(new THREE.CylinderGeometry(.042, .022, .82, 10), wood); bat.position.set(0, -.47, .03); arms[1].wrist.add(bat);
+  // her head: grey hair pulled back into a bun, ears... and Damian's face
+  const neck = joint(upper, 0, .29, .02); neck.rotation.x = -.15; taper(neck, .042, .05, .11, skin).position.y = .055;
+  const head = joint(upper, 0, .4, .05); head.rotation.x = -(.22 + .32) + .05; head.scale.setScalar(1.5);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(.13, 18, 14), skin); skull.scale.set(1, 1.13, 1.05); head.add(skull);
+  [-1, 1].forEach(s => { const ear = new THREE.Mesh(new THREE.SphereGeometry(.03, 8, 6), skin); ear.scale.set(.5, 1, .8); ear.position.set(s * .128, -.005, -.01); head.add(ear); });
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(.137, 18, 10, 0, TAU, 0, .95), hair); cap.scale.set(1, 1.13, 1.06); head.add(cap);
+  const back = new THREE.Mesh(new THREE.SphereGeometry(.135, 18, 10, Math.PI, Math.PI, 0, 2.1), hair); back.scale.set(1, 1.13, 1.06); head.add(back);
+  const bun = new THREE.Mesh(new THREE.SphereGeometry(.062, 12, 8), hair); bun.position.set(0, .1, -.12); head.add(bun);
+  const faceGeo = r => new THREE.SphereGeometry(r, 20, 16, Math.PI / 2 - .9, 1.8, .5, 1.85);
+  const face = new THREE.Mesh(faceGeo(.141), new THREE.MeshPhongMaterial({ transparent: true, alphaTest: .3, shininess: 4 })); face.scale.set(1, 1.13, 1.06); head.add(face);
+  const eyes = new THREE.Mesh(faceGeo(.144), new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); eyes.scale.set(1, 1.13, 1.06); head.add(eyes);
+  DM = { g, body, legs, arms, upper, head, face, eyes, hem, tails, fall: 0, walk: 0, sway: { x: 0, vx: 0, z: 0, vz: 0 }, lx: 0, lz: 0 };
 }
 function setDamianHead(i) {
   const h = HEADS[i]; if (!h || !DM) return;
@@ -1746,7 +1835,16 @@ function animateDamian(t, dt, show) {
     A.top.rotation.x = s - chase * (i === 1 ? 1.6 : .9) + (stunned ? -2.6 : 0);   // arms reach out for you when she's chasing, bat raised
     A.mid.rotation.x = -.35 - chase * .3; A.top.rotation.z = (i ? -1 : 1) * (.12 + chase * .1);
   });
-  if (!stunned) DM.body.position.y = Math.abs(Math.cos(ph)) * .035 * (sw ? 1 : 0);
+  if (!stunned) DM.body.position.y = Math.abs(Math.cos(ph)) * .03;
+  DM.upper.scale.y = 1 + Math.sin(t * 2.3) * .012;   // breathing
+  // cloth physics: the nightgown, apron and shawl ends lag behind her and swing back like real fabric (a damped spring)
+  const vx = dt > 0 ? (x - DM.lx) / dt : 0, vz = dt > 0 ? (z - DM.lz) / dt : 0; DM.lx = x; DM.lz = z;
+  const fwd = clamp(vx * Math.cos(D.heading) + vz * Math.sin(D.heading), -6, 6), side = clamp(-vx * Math.sin(D.heading) + vz * Math.cos(D.heading), -6, 6);
+  const S = DM.sway, step = Math.min(dt, .05);
+  S.vx += ((fwd * .06 + Math.sin(ph * 2) * .025) - S.x) * 90 * step - S.vx * 9 * step; S.x += S.vx * step;
+  S.vz += ((-side * .05 + Math.sin(ph) * .03) - S.z) * 90 * step - S.vz * 9 * step; S.z += S.vz * step;
+  DM.hem.rotation.set(clamp(S.x, -.35, .35), 0, clamp(S.z, -.3, .3));
+  DM.tails.forEach(j => { j.rotation.x = clamp(S.x * 1.8, -.6, .6); j.rotation.z = clamp(S.z * 1.5, -.5, .5); });
   // she turns her head to stare at you when she knows where you are
   let look = 0;
   if (!stunned && D.f === P.f && (D.mode === 'chase' || D.mode === 'check')) { look = Math.atan2(P.y - D.y, P.x - D.x) - D.heading; look = Math.atan2(Math.sin(look), Math.cos(look)); }
@@ -1804,7 +1902,7 @@ function renderFrame(now, dt) {
   LAMPS.forEach(l => { l.light.intensity = l.base * (.75 + Math.random() * .35); });
   BULBS.forEach(b => {
     if (b.flick && (b.t -= dt) <= 0) { b.on = Math.random() < .8; b.t = b.on ? .3 + Math.random() * 2.5 : .04 + Math.random() * .15; }
-    b.k = (b.on ? 1 : .06) * flicker; b.bulb.material.color.setRGB(.25 + .75 * b.k, (.25 + .75 * b.k) * .84, (.25 + .75 * b.k) * .54); b.glow.material.opacity = b.k;
+    b.k = (b.on ? 1 : .06) * flicker; const v = .25 + .75 * b.k; b.bulb.material.color.setRGB(v * LIGHT_TINT[0], v * LIGHT_TINT[1], v * LIGHT_TINT[2]); b.glow.material.opacity = b.k;
     const dx = b.pos.x - camera.position.x, dy = (b.pos.y - camera.position.y) * 5, dz = b.pos.z - camera.position.z; b.d = dx * dx + dy * dy + dz * dz;   // bulbs on your own floor first
   });
   const near = BULBS.slice().sort((a, b) => a.d - b.d);
@@ -1977,20 +2075,142 @@ function drawScare(now) {
 }
 function showDeathScreen() {
   $('scare').style.display = 'none'; state = 'dead';
-  $('deadStats').textContent = `Deaths: ${deaths}${P.hasGun ? ` · You kept the shotgun (${P.shells} shell${P.shells === 1 ? '' : 's'} left)` : ''}`; $('dead').hidden = false;
+  $('deadStats').textContent = `${MODE.label} mode · Deaths: ${deaths}${P.hasGun ? ` · You kept the shotgun (${P.shells} shell${P.shells === 1 ? '' : 's'} left)` : ''}`; $('dead').hidden = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const btn = $('retryBtn'); btn.disabled = true; btn.textContent = '...';
   setTimeout(() => { if (state === 'dead') { btn.disabled = false; btn.textContent = 'TRY AGAIN'; } }, RETRY_DELAY);
   sfx.afterDeath();
 }
-function win() {
-  state = 'win'; if (document.pointerLockElement) document.exitPointerLock();
-  $('hud').hidden = true; $('touch').style.display = 'none'; $('danger').style.opacity = 0;
-  if (AC) chaseGain.gain.setTargetAtTime(0, AC.currentTime, .1);
-  const secs = Math.round((performance.now() - runStart) / 1000);
-  $('winStats').textContent = `Time: ${Math.floor(secs / 60)}m ${secs % 60}s · Deaths: ${deaths}`;
-  $('win').hidden = false; sfx.open();
+/* =====================================================================
+   THE ENDING: out the front door, run to the car and drive away
+   ===================================================================== */
+const G = FH;                                        // ground level outside = the ground floor
+const DOOR_X = (EXIT.x + 1) * T, DOOR_Z = (EXIT.y + .5) * T, CAR = { x: 35.7, z: 11.5 };
+let EXT = null, END = null;
+function repTex(canvas, rx, ry) { const t = new THREE.CanvasTexture(canvas); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.magFilter = THREE.NearestFilter; return t; }
+function flatQuad(parent, w, d, x, y, z, m) { const me = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); me.rotation.x = -Math.PI / 2; me.position.set(x, y, z); parent.add(me); return me; }
+function makeCar() {
+  const c = new THREE.Group(), paint = mat(0x5a1616, { shininess: 70, specular: 0x444444 }), glass = mat(0x0c141c, { shininess: 100, specular: 0x8899aa });
+  const black = mat(0x111111), chrome = mat(0x9a9a9a, { shininess: 90, specular: 0x888888 }), wheels = [];
+  box(c, 1.8, .55, 4.4, 0, .5, 0, paint);
+  box(c, 1.62, .5, 2.2, 0, 1.02, -.25, glass);
+  box(c, 1.66, .07, 2.05, 0, 1.3, -.25, paint);
+  [-1, 1].forEach(s => [-1.32, .82].forEach(zz => box(c, .06, .5, .08, s * .8, 1.02, zz, paint)));
+  box(c, 1.84, .14, .18, 0, .3, 2.22, chrome); box(c, 1.84, .14, .18, 0, .3, -2.22, chrome);
+  [-1, 1].forEach(s => [-1, 1].forEach(e => {
+    const w = new THREE.Group(); w.position.set(s * .86, .34, e * 1.4); c.add(w);
+    const tire = cyl(w, .34, .24, 0, 0, 0, black, 16); tire.rotation.z = Math.PI / 2;
+    const hub = cyl(w, .17, .25, 0, 0, 0, chrome, 12); hub.rotation.z = Math.PI / 2; wheels.push(w);
+  }));
+  const lamp = new THREE.MeshBasicMaterial({ color: 0xfff4d0 }), tail = new THREE.MeshBasicMaterial({ color: 0x8a0c0c });
+  [-1, 1].forEach(s => { box(c, .32, .14, .05, s * .6, .62, 2.21, lamp); box(c, .3, .12, .05, s * .62, .62, -2.21, tail); });
+  const heads = [-1, 1].map(s => { const l = new THREE.SpotLight(0xfff0d0, 0, 40, .42, .45, 1.2); l.position.set(s * .6, .62, 2.3); l.target.position.set(s * .6, 0, 16); c.add(l, l.target); return l; });
+  c.userData = { wheels, heads, lamp, tail };
+  return c;
 }
+function buildExterior() {
+  const e = new THREE.Group();
+  // grass, the gravel path from the porch, and the road
+  const gm = new THREE.MeshPhongMaterial({ map: repTex(TEX.grass, 60, 60), shininess: 2 });
+  flatQuad(e, 200, 220, DOOR_X + 100, G - .01, 10, gm);
+  flatQuad(e, 6.5, 1.6, DOOR_X + 3.3, G + .004, DOOR_Z, new THREE.MeshPhongMaterial({ map: repTex(TEX.gravel, 6, 2), shininess: 2 }));
+  flatQuad(e, 6, 240, CAR.x, G + .006, 30, new THREE.MeshPhongMaterial({ map: repTex(TEX.asphalt, 5, 200), shininess: 8 }));
+  for (let z = -80; z < 150; z += 4) flatQuad(e, .14, 1.8, CAR.x - 1.6, G + .01, z, new THREE.MeshBasicMaterial({ color: 0x8a7a2a }));
+  // the outside of Damian's house: siding walls, a roof, dim windows, and the front door hanging open
+  const side = new THREE.MeshPhongMaterial({ map: repTex(TEX.siding, 12, 4), shininess: 3 });
+  box(e, 24 * T, G + 2 * FH, MH * T, 12 * T, (G + 2 * FH) / 2, MH * T / 2, side);
+  const a = .4, W = MH * T / 2 + .8, L = W / Math.cos(a), ridge = G + 2 * FH + W * Math.tan(a) - .8, roof = mat(0x2a2422);
+  [-1, 1].forEach(s => { const r = box(e, 24 * T + 1.2, .25, L, 12 * T, ridge - L / 2 * Math.sin(a), MH * T / 2 + s * L / 2 * Math.cos(a), roof); r.rotation.x = s * a; });
+  const gable = new THREE.BufferGeometry(); const top = G + 2 * FH;
+  gable.setAttribute('position', new THREE.Float32BufferAttribute([DOOR_X, top, 0, DOOR_X, top, MH * T, DOOR_X, ridge, MH * T / 2], 3)); gable.computeVertexNormals();
+  e.add(new THREE.Mesh(gable, new THREE.MeshPhongMaterial({ color: 0x4a4840, side: THREE.DoubleSide })));
+  const winMat = new THREE.MeshBasicMaterial({ color: MODE.red ? 0x3a0606 : 0x2a1c0c }), darkWin = new THREE.MeshBasicMaterial({ color: 0x05070a });
+  [[3.5, 1], [6.5, 1], [13.5, 1], [16.5, 1], [3.5, 2], [10, 2], [16.5, 2]].forEach(([zt, fl], i) => {
+    const w = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.2), i % 3 === 1 ? winMat : darkWin); w.rotation.y = Math.PI / 2; w.position.set(DOOR_X + .02, floorY(fl) + 1.5, zt * T); e.add(w);
+  });
+  const doorway = new THREE.Mesh(new THREE.PlaneGeometry(T * .92, DH), new THREE.MeshBasicMaterial({ color: MODE.red ? 0x2a0404 : 0x24160a })); doorway.rotation.y = Math.PI / 2; doorway.position.set(DOOR_X + .02, G + DH / 2, DOOR_Z); e.add(doorway);
+  const door = box(e, .06, DH, T * .9, DOOR_X + .5, G + DH / 2, DOOR_Z + T * .62, mat(TEX.door)); door.rotation.y = -1.3;
+  box(e, 2.2, .2, 4, DOOR_X + 1.1, G - .09, DOOR_Z, mat(TEX.stair));   // the porch
+  const porch = new THREE.PointLight(MODE.red ? 0xff2010 : 0xffb060, 1.5, 12, 2); porch.position.set(DOOR_X + .4, G + 2.4, DOOR_Z + .9); e.add(porch);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(.07, 8, 6), new THREE.MeshBasicMaterial({ color: MODE.red ? 0xff3020 : 0xffd68a, fog: false })); bulb.position.copy(porch.position); e.add(bulb);
+  // spooky trees
+  const trunk = mat(0x1e140c), leaf = mat(0x0c160d);
+  [[42, -8], [47, 2], [44, 18], [50, 28], [41, 34], [55, 8], [31, -4], [32, 25], [58, -14], [46, 44]].forEach(([x, z]) => {
+    const h = 2.4 + Math.random() * 1.4; cyl(e, .16, h, x, G + h / 2, z, trunk, 8);
+    for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(1.7 - i * .4, 2, 9), leaf); c.position.set(x, G + h + i * 1.1, z); e.add(c); }
+  });
+  // the night sky: a moon and stars
+  const mc = mk(64), mx = mc.getContext('2d'), mg = mx.createRadialGradient(32, 32, 0, 32, 32, 32); mg.addColorStop(0, 'rgba(235,240,255,1)'); mg.addColorStop(.35, 'rgba(210,220,255,.9)'); mg.addColorStop(.45, 'rgba(160,180,230,.25)'); mg.addColorStop(1, 'rgba(120,140,200,0)'); mx.fillStyle = mg; mx.fillRect(0, 0, 64, 64);
+  const moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(mc), fog: false, color: MODE.red ? 0xff8070 : 0xffffff })); moon.scale.setScalar(16); moon.position.set(110, 55, 70); e.add(moon);
+  const sp = []; for (let i = 0; i < 500; i++) { const th = Math.random() * TAU, ph = Math.random() * 1.3; sp.push(Math.cos(th) * Math.sin(ph) * 150 + 40, Math.cos(ph) * 150 + 10, Math.sin(th) * Math.sin(ph) * 150 + 10); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+  e.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xc8d0ff, size: 1.5, sizeAttenuation: false, fog: false })));
+  e.add(new THREE.HemisphereLight(MODE.red ? 0x6a2a2a : 0x4a5a7a, 0x0c0c08, .5));
+  const moonLight = new THREE.DirectionalLight(MODE.red ? 0xd07070 : 0x9aaee0, .5); moonLight.position.set(110, 55, 70); e.add(moonLight);
+  const car = makeCar(); car.position.set(CAR.x, G, CAR.z); e.add(car);
+  return { group: e, car };
+}
+function win() {
+  state = 'ending'; if (document.pointerLockElement) document.exitPointerLock();
+  $('hud').hidden = true; $('touch').style.display = 'none'; $('danger').style.opacity = 0;
+  if (AC) { chaseGain.gain.setTargetAtTime(0, AC.currentTime, .1); droneGain.gain.setTargetAtTime(.015, AC.currentTime, .5); }
+  EXT = buildExterior(); scene.add(EXT.group);
+  END = { t0: performance.now(), stepT: 0, said: false, slam: false, started: false, engine: null, text: false, fadedIn: false, saved: { bg: scene.background, fog: scene.fog } };
+  scene.background = new THREE.Color(MODE.red ? 0x120406 : 0x070a14); scene.fog = new THREE.FogExp2(scene.background.getHex(), .018);
+  flashlight.intensity = 0; LIGHT_POOL.forEach(l => l.intensity = 0);
+  D.f = 1; D.x = (DOOR_X + .35) / T; D.y = EXIT.y + .5; D.heading = 0; D.mode = 'chase'; P.f = 1;   // she bursts out of the front door after you
+  $('skipHint').style.display = 'block';
+  sfx.open();
+}
+const ease = k => k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+function updateEnding(now, dt) {
+  const e = (now - END.t0) / 1000, car = EXT.car, fd = $('fade'), endText = $('endText');
+  if (e < 3.2) {   // run for the car! (and glance back at the house)
+    const k = ease(clamp(e / 3.1, 0, 1)), x = DOOR_X + .6 + (CAR.x - 1.15 - DOOR_X - .6) * k, z = DOOR_Z + (CAR.z - .3 - DOOR_Z) * k;
+    const back = clamp(1 - Math.abs(e - 1.9) / .45, 0, 1);   // the look over your shoulder
+    const yawCar = Math.atan2(CAR.z - z, CAR.x - x), yawHouse = Math.atan2(DOOR_Z - z, DOOR_X - x);
+    const bob = Math.sin(e * 16) * .06;
+    camera.position.set(x + Math.sin(e * 8) * .03, G + 1.55 + bob, z);
+    const yaw = yawCar + (Math.atan2(Math.sin(yawHouse - yawCar), Math.cos(yawHouse - yawCar))) * ease(back);
+    camera.rotation.set(-.08 + back * .05, -yaw - Math.PI / 2, Math.sin(e * 8) * .02);
+    P.x = x / T; P.y = z / T;
+    if ((END.stepT -= dt) <= 0) { sfx.gravel(.18); END.stepT = .27; }
+    if (!END.said && e > 1.3) { END.said = true; playVoice(1.1, -.8, 1, true, 'chase'); sfx.breath(); }
+  } else if (e < 3.9) {   // jump in and slam the door
+    fd.style.transition = 'none'; fd.style.background = '#000'; fd.style.opacity = clamp((e - 3.2) / .25, 0, 1);
+    if (!END.slam && e > 3.45) { END.slam = true; sfx.doorClose(.7); }
+    if (!END.started && e > 3.75) { END.started = true; END.engine = sfx.engine(); car.userData.heads.forEach(l => l.intensity = 2.4); }
+  } else {   // drive away while Damian watches from the doorway
+    if (!END.fadedIn) { END.fadedIn = true; fd.style.transition = 'opacity .8s'; fd.style.opacity = 0; }
+    const td = Math.max(0, e - 4.6), z = CAR.z + 1.6 * td * td, speed = 3.2 * td;
+    car.position.z = z; car.userData.wheels.forEach(w => w.rotation.x += speed * dt / .34);
+    if (END.engine) END.engine.set(clamp(speed / 14, 0, 1));
+    const camX = CAR.x + 4.2, camZ = CAR.z + 12;
+    camera.position.set(camX, G + 1.4, camZ);
+    const lz = Math.min(z, camZ + 30);
+    const dx = (td < 2.4 ? car.position.x : CAR.x) - camX, dz = (td < 2.4 ? car.position.z : lz) - camZ;
+    camera.rotation.set(-.04, -Math.atan2(dz, dx) - Math.PI / 2, 0);
+    if (td > .5) D.x = Math.min((DOOR_X + 1.6) / T, D.x + dt * .5);   // she steps out onto the porch... too late
+    if (!END.text && e > 6.3) { END.text = true; endText.textContent = 'YOU ESCAPED'; endText.style.opacity = 1; }
+    if (e > 10.2) { fd.style.transition = 'opacity .9s'; fd.style.opacity = 1; }
+    if (e > 11.3) return finishEnding();
+  }
+  P.f = 1; danger = 0;
+  animateDamian(now / 1000, dt, true);
+  renderer.render(scene, camera); drawOverlay(now);
+}
+function finishEnding() {
+  if (!END) return;
+  if (END.engine) END.engine.stop();
+  scene.remove(EXT.group); EXT = null; scene.background = END.saved.bg; scene.fog = END.saved.fog; END = null;
+  const fd = $('fade'); fd.style.transition = 'opacity .6s'; fd.style.opacity = 0; $('endText').style.opacity = 0; $('skipHint').style.display = 'none';
+  state = 'win';
+  const secs = Math.round((performance.now() - runStart) / 1000);
+  $('winStats').textContent = `${MODE.label} mode · Time: ${Math.floor(secs / 60)}m ${secs % 60}s · Deaths: ${deaths}`;
+  $('win').hidden = false;
+}
+addEventListener('pointerdown', () => { if (state === 'ending' && END && performance.now() - END.t0 > 600) finishEnding(); });
+addEventListener('keydown', e => { if (state === 'ending' && END && performance.now() - END.t0 > 600 && (e.code === 'Space' || e.code === 'Escape' || e.code === 'Enter')) finishEnding(); });
 function startPlaying(fresh) {
   if (!renderer) return;
   ['title', 'dead', 'win', 'paused'].forEach(id => $(id).hidden = true);
@@ -2006,6 +2226,7 @@ function frame(now) {
   if (renderer) {
     if (state === 'play') { update(dt, now); if (state === 'play') renderFrame(now, dt); }
     else if (state === 'scare') drawScare(now);
+    else if (state === 'ending') updateEnding(now, dt);
     else if (state === 'title' && HEADS.length) { P.a = START.a + Math.sin(now / 4000) * .8; P.pitch = Math.sin(now / 5300) * .15; renderFrame(now, dt); }
   }
   requestAnimationFrame(frame);
@@ -2042,6 +2263,8 @@ function frame(now) {
   const vols = document.querySelectorAll('.volSlider'), senses = document.querySelectorAll('.sensSlider');
   vols.forEach(v => { v.value = Math.round(volume * 100); v.oninput = () => { setVolume(v.value / 100); vols.forEach(o => o.value = v.value); }; });
   senses.forEach(v => { v.value = Math.round(lookSpeed * 100); v.oninput = () => { setLookSpeed(v.value / 100); senses.forEach(o => o.value = v.value); }; });
+  document.querySelectorAll('#modes button').forEach(b => b.onclick = () => { setMode(b.dataset.mode); if (AC) sfx.click(); });
+  setMode(modeKey);
   $('startBtn').onclick = () => startPlaying(true);
   $('retryBtn').onclick = () => startPlaying(false);
   $('againBtn').onclick = () => startPlaying(true);
