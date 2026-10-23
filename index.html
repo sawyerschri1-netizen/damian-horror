@@ -767,6 +767,21 @@ const sfx = {
   doorClose(vol) { if (!AC) return; const t = AC.currentTime, v = vol === undefined ? .3 : vol; tone(t, 90, 45, .25, v); noiseHit(t, .15, 500, v); },
   stairs() { if (!AC) return; const t = AC.currentTime; for (let i = 0; i < 4; i++) noiseHit(t + i * .12, .08, 500, .08); },
   hide() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .25, 900, .2, 'bandpass'); tone(t, 200, 150, .2, .06, 'square'); },
+  // the granny turning into the monster: bones cracking and a rising shriek
+  transform() {
+    if (!AC) return; const t = AC.currentTime, out = AC.createGain(); out.gain.value = .9; out.connect(master); out.connect(reverb);
+    for (let i = 0; i < 8; i++) noiseHit(t + i * .05 + Math.random() * .03, .04, 1200 + Math.random() * 1500, .35, 'bandpass', out);
+    const o = AC.createOscillator(), g = AC.createGain(), sh = AC.createWaveShaper(); sh.curve = distortion(200); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(1300, t + .5);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.35, t + .1); g.gain.exponentialRampToValueAtTime(.0001, t + .7);
+    o.connect(sh); sh.connect(g); g.connect(out); o.start(t); o.stop(t + .75);
+    tone(t, 55, 30, .6, .6, 'sine', out);
+  },
+  // the jumpscare cut: a massive boom and a burst of static
+  scareBoom() {
+    if (!AC) return; const t = AC.currentTime + .55;
+    tone(t, 70, 22, 1.3, 1.3, 'sine'); tone(t, 140, 40, .5, .6, 'square'); noiseHit(t, .6, 3500, .7, 'highpass'); noiseHit(t, .3, 400, .8);
+  },
   gravel(vol) { if (!AC) return; const t = AC.currentTime; noiseHit(t, .1, 1800, vol, 'bandpass'); noiseHit(t + .02, .07, 700, vol * .6); },
   // the getaway car: the starter cranks, then the engine idles and revs as you drive off
   engine() {
@@ -830,6 +845,33 @@ const sfx = {
     const o = AC.createOscillator(), g = AC.createGain(); o.frequency.value = 3400;
     g.gain.setValueAtTime(.05, t); g.gain.exponentialRampToValueAtTime(.0001, t + 4.5); o.connect(g); g.connect(master); o.start(t); o.stop(t + 4.6);
     tone(t, 45, 30, 3, .35, 'sine');
+  },
+};
+// The monster screams the whole time it runs at you: a distorted, wavering shriek that comes from where it is.
+const scream = {
+  nodes: null,
+  start() {
+    if (!AC || this.nodes) return;
+    const out = AC.createGain(), pan = AC.createStereoPanner ? AC.createStereoPanner() : null, sh = AC.createWaveShaper(), bp = AC.createBiquadFilter(), trem = AC.createGain(), lfo = AC.createOscillator(), lfoG = AC.createGain();
+    sh.curve = distortion(300); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = .6;
+    out.gain.value = 0; trem.gain.value = .7; lfo.frequency.value = 11; lfoG.gain.value = .3; lfo.connect(lfoG); lfoG.connect(trem.gain);
+    const oscs = [380, 470, 610, 790].map((f, i) => {
+      const o = AC.createOscillator(), v = AC.createOscillator(), vg = AC.createGain(); o.type = 'sawtooth'; o.frequency.value = f;
+      v.frequency.value = 6 + i * 1.7; vg.gain.value = 30 + i * 10; v.connect(vg); vg.connect(o.frequency); o.connect(sh); o.start(); v.start(); return [o, v];
+    });
+    const n = AC.createBufferSource(), nf = AC.createBiquadFilter(); n.buffer = noiseBuf; n.loop = true; nf.type = 'bandpass'; nf.frequency.value = 2600; n.connect(nf); nf.connect(sh); n.start();
+    sh.connect(bp); bp.connect(trem); trem.connect(out); out.connect(reverb);
+    if (pan) { out.connect(pan); pan.connect(master); } else out.connect(master);
+    lfo.start(); this.nodes = { out, pan, oscs, n, lfo };
+  },
+  set(vol, p) {
+    if (!this.nodes) return; const t = AC.currentTime;
+    this.nodes.out.gain.setTargetAtTime(vol, t, .08); if (this.nodes.pan) this.nodes.pan.pan.setTargetAtTime(clamp(p, -1, 1), t, .05);
+    this.nodes.oscs.forEach(([o], i) => o.detune.setTargetAtTime(Math.sin(t * 1.3 + i) * 250, t, .2));
+  },
+  stop() {
+    if (!this.nodes) return; const { out, oscs, n, lfo } = this.nodes, t = AC.currentTime;
+    out.gain.setTargetAtTime(0, t, .05); oscs.forEach(([o, v]) => { o.stop(t + .4); v.stop(t + .4); }); n.stop(t + .4); lfo.stop(t + .4); this.nodes = null;
   },
 };
 function playVoice(vol, pan, rate, force, name) {
@@ -939,6 +981,7 @@ function placeDamian() {
   const c = far[Math.floor(Math.random() * far.length)];
   D.f = nodeF(c); D.x = nodeX(c) + .5; D.y = nodeY(c) + .5; D.path = []; D.repath = 0; D.doorWait = 0; D.stunUntil = 0;
   D.awakeAt = performance.now() + CONFIG.graceSeconds * MODE.grace * 1000; D.stung = false; D.voiceT = 0;
+  D.monster = false; D.morphT = 0; D.calmT = 0; scream.stop(); if (MON) MON.g.visible = false;
   D.mode = 'patrol'; D.goal = null; D.goalKey = ''; D.lastSeen = null; D.lostT = 0; D.idleT = 0; D.knowsHide = null; D.heading = Math.random() * TAU;
   headIndex = (headIndex + 1) % HEADS.length; setDamianHead(headIndex);
 }
@@ -1042,6 +1085,7 @@ document.addEventListener('pointerlockchange', () => {
 function pause() {
   state = 'paused'; $('paused').hidden = false; dragging = false;
   if (AC) chaseGain.gain.setTargetAtTime(0, AC.currentTime, .05);
+  scream.set(0, 0);
 }
 function resume() { $('paused').hidden = true; state = 'play'; lastT = performance.now(); lockMouse(); }
 document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') pause(); });
@@ -1214,7 +1258,7 @@ function startSearch(f, x, y) { D.mode = 'search'; D.searchT = 6 + Math.random()
 function damianDoorSound(open) { const near = D.f === P.f ? 1 / (1 + Math.hypot(D.x - P.x, D.y - P.y) * .35) : .15; open ? sfx.doorOpen(.3 * near) : sfx.doorClose(.3 * near); }
 function moveDamian(dt, speed) {
   if (!D.goal) return true;
-  speed *= MODE.speed;
+  speed *= MODE.speed * (D.monster ? 1.2 : 1);   // the monster is faster
   if (D.doorWait > 0) { D.doorWait -= dt; return false; }
   if ((D.repath -= dt) <= 0) {
     D.repath = .3; D.field = bfs3(nodeOf(D.goal.f, D.goal.x, D.goal.y));
@@ -1359,6 +1403,16 @@ function update(dt, now) {
   const safeInCrawl = cellM(P.f, Math.floor(P.x), Math.floor(P.y)) === 30;   // he can't reach you inside a crawl space
   if (awake && !out && same && !P.hidden && !safeInCrawl && straight < .55) return caught();
   if (awake && !out && P.hidden && D.knowsHide === P.hidden && D.f === P.hidden.f && Math.hypot(D.x - (P.hidden.sx + .5), D.y - (P.hidden.sy + .5)) < .8) return caught();
+  // Up close, the granny turns into the monster. Lose it for a few seconds and it turns back.
+  if (D.morphT > 0) D.morphT -= dt;
+  if (!D.monster && awake && !out && same && D.mode === 'chase' && straight < 6) {
+    D.monster = true; D.morphT = .45; D.calmT = 0; sfx.transform();
+    if (!D.shownMonster) { D.shownMonster = true; say('WHAT IS THAT?! RUN!', 2.2); }
+  }
+  if (D.monster) {
+    D.calmT = D.mode === 'chase' && same && straight < 11 ? 0 : D.calmT + dt;
+    if (out || D.calmT > 2.5) { D.monster = false; D.morphT = .45; scream.stop(); }
+  }
   const prox = awake && !out ? clamp(1 - (straight - 1) / 12, 0, 1) : 0;
   const target = D.mode === 'chase' ? Math.max(prox, .4) : D.mode === 'check' ? Math.max(prox, .3) : D.mode === 'patrol' ? prox * .45 : prox * .65;
   danger += (target - danger) * Math.min(1, dt * 3);
@@ -1367,6 +1421,7 @@ function update(dt, now) {
     chaseGain.gain.setTargetAtTime((D.mode === 'chase' ? danger * danger * .55 : danger * danger * .18), AC.currentTime, .15);
     heartT -= dt; if (danger > .05 && heartT <= 0) { sfx.heart(.2 + danger * .5); heartT = 1.15 - danger * .8; }
     const rel = Math.atan2(D.y - P.y, D.x - P.x) - P.a, pan = same ? Math.sin(rel) : 0;
+    if (D.monster && !out) { scream.start(); scream.set(clamp(1.2 / (1 + straight * .25), .05, 1) * (.6 + .4 * Math.abs(Math.sin(now / 470))), pan); }
     // his footsteps: clear on your floor, a muffled thump through the floorboards on another
     if (D.stepAcc > .6) {   // one footstep for every stride
       D.stepAcc = 0;
@@ -1821,9 +1876,11 @@ function setDamianHead(i) {
   const h = HEADS[i]; if (!h || !DM) return;
   DM.face.material.map = h.tex; DM.eyes.material.map = h.eyeTex;
   DM.face.material.needsUpdate = DM.eyes.material.needsUpdate = true;
+  if (MON) { MON.face.material.map = h.tex; MON.eyes.material.map = h.eyeTex; MON.face.material.needsUpdate = MON.eyes.material.needsUpdate = true; }
 }
 function animateDamian(t, dt, show) {
-  const g = DM.g; g.visible = show; if (!show) return;
+  const g = DM.g; if (MON) showForms(show); else g.visible = show;
+  if (!g.visible) return;
   const stunned = D.mode === 'stunned', x = D.x * T, z = D.y * T;
   g.position.set(x, groundAt(D.f, D.x, D.y), z); g.rotation.y = Math.PI / 2 - D.heading;
   DM.fall += ((stunned ? 1 : 0) - DM.fall) * Math.min(1, dt * 6);   // knocked out: she falls flat on her back
@@ -1851,6 +1908,70 @@ function animateDamian(t, dt, show) {
   DM.head.rotation.y += (-clamp(look, -1.2, 1.2) - DM.head.rotation.y) * Math.min(1, dt * 8);
   DM.head.rotation.z = Math.sin(t * 1.7) * .08 + (danger > .5 ? (Math.random() - .5) * .08 : 0);
   DM.eyes.visible = !stunned;
+}
+/* ---- the monster: when Damian gets close, the granny turns into this. A tall, lanky, pitch-black thing with Damian's face ---- */
+let MON = null;
+function buildMonster() {
+  const black = mat(0x040404, { shininess: 8, specular: 0x060606 }), g = new THREE.Group(), body = new THREE.Group(); g.add(body); world.add(g); g.visible = false;
+  const ball = (parent, r, x, y, z) => { const b = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), black); b.position.set(x, y, z); parent.add(b); return b; };
+  // long, thin legs with knobbly knees and clawed feet
+  const legs = [-1, 1].map(s => {
+    const hip = joint(body, s * .11, 1.12, 0); taper(hip, .055, .034, .58, black, 8);
+    const knee = joint(hip, 0, -.58, 0); ball(knee, .042, 0, 0, 0); taper(knee, .036, .02, .55, black, 8);
+    box(knee, .07, .03, .2, 0, -.56, .07, black);
+    [-.025, 0, .025].forEach(o => { const c = new THREE.Mesh(new THREE.ConeGeometry(.01, .09, 5), black); c.rotation.x = Math.PI / 2; c.position.set(o, -.565, .21); knee.add(c); });
+    return { top: hip, mid: knee };
+  });
+  box(body, .26, .12, .14, 0, 1.13, 0, black);
+  // a thin, bent-over body with a knobbly spine
+  const spine = joint(body, 0, 1.15, 0); spine.rotation.x = .35;
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(.13, .075, .74, 10), black); torso.position.y = .37; spine.add(torso);
+  for (let i = 0; i < 7; i++) ball(spine, .028, 0, .08 + i * .1, -.1 + Math.sin(i * .5) * .01);
+  [0, 1, 2, 3].forEach(i => { const rib = new THREE.Mesh(new THREE.TorusGeometry(.115 - i * .008, .009, 5, 14, Math.PI * 1.3), black); rib.rotation.set(Math.PI / 2, 0, -Math.PI * .15); rib.position.y = .42 + i * .07; spine.add(rib); });
+  const chest = joint(spine, 0, .72, 0); chest.rotation.x = .25;
+  box(chest, .5, .07, .11, 0, 0, 0, black); [-1, 1].forEach(s => ball(chest, .05, s * .25, 0, 0));
+  // arms down to its knees, with long claw fingers
+  const arms = [-1, 1].map(s => {
+    const sh = joint(chest, s * .26, 0, 0); taper(sh, .04, .028, .62, black, 8);
+    const el = joint(sh, 0, -.62, 0); ball(el, .032, 0, 0, 0); taper(el, .028, .016, .66, black, 8);
+    const hand = joint(el, 0, -.66, 0); box(hand, .07, .08, .025, 0, -.04, 0, black);
+    for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.ConeGeometry(.009, .22, 5), black); f.rotation.x = Math.PI; f.rotation.z = (i - 1.5) * .12; f.position.set(-.027 + i * .018, -.19, .01); hand.add(f); }
+    return { top: sh, mid: el, hand };
+  });
+  // a long neck, and a stretched head wearing Damian's face
+  const neck = joint(chest, 0, .03, .04); neck.rotation.x = -.5; const nk = new THREE.Mesh(new THREE.CylinderGeometry(.03, .036, .3, 8), black); nk.position.y = .15; neck.add(nk);
+  const head = joint(chest, 0, .33, .13); head.rotation.x = -(.35 + .25) + .25; head.scale.set(1.45, 1.75, 1.45);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(.13, 16, 12), black); skull.scale.set(.95, 1.05, 1); head.add(skull);
+  const faceGeo = r => new THREE.SphereGeometry(r, 20, 16, Math.PI / 2 - .9, 1.8, .5, 1.85);
+  const face = new THREE.Mesh(faceGeo(.136), new THREE.MeshPhongMaterial({ transparent: true, alphaTest: .3, shininess: 4, color: 0xc8c0c0 })); head.add(face);
+  const eyes = new THREE.Mesh(faceGeo(.139), new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); head.add(eyes);
+  const eyes2 = eyes.clone(); eyes2.scale.setScalar(1.005); head.add(eyes2);   // extra-bright eyes
+  MON = { g, body, legs, arms, spine, chest, head, face, eyes, eyes2, walk: 0 };
+}
+// form: 0 = granny, 1 = monster. While it changes, it flickers between the two.
+function showForms(show) {
+  const morphing = D.morphT > 0, flick = morphing && Math.floor(performance.now() / 55) % 2 === 0;
+  const mon = D.monster ? !flick : flick;
+  DM.g.visible = show && !mon; MON.g.visible = show && mon;
+}
+function animateMonster(t, dt, pose) {
+  if (!MON.g.visible) return;
+  const x = D.x * T, z = D.y * T, M = MON;
+  if (pose !== 'lunge') { M.g.position.set(x, groundAt(D.f, D.x, D.y), z); M.g.rotation.y = Math.PI / 2 - D.heading; }
+  M.walk = DM.walk;
+  const ph = M.walk * 3.6, run = pose === 'lunge' ? 0 : .8, tw = () => (Math.random() - .5) * .25;
+  M.legs.forEach((L, i) => { const s = Math.sin(ph + i * Math.PI) * run; L.top.rotation.x = s - (pose === 'lunge' ? .3 : 0); L.mid.rotation.x = Math.max(0, -s) * 1.2 + (pose === 'lunge' ? .4 : 0); });
+  M.arms.forEach((A, i) => {
+    const s = Math.sin(ph + (1 - i) * Math.PI) * run;
+    if (pose === 'lunge') { A.top.rotation.set(-2.2 + tw() * .3, 0, (i ? -1 : 1) * .55); A.mid.rotation.x = -.4; }   // arms thrown wide, grabbing for you
+    else { A.top.rotation.set(s * .9 - .9 + tw() * .4, 0, (i ? -1 : 1) * (.25 + Math.abs(s) * .2)); A.mid.rotation.x = -.5 + tw() * .5; }
+  });
+  M.body.position.y = Math.abs(Math.cos(ph)) * .06;
+  M.spine.rotation.x = .35 + (pose === 'lunge' ? .25 : .15) + Math.sin(ph * 2) * .05;
+  // it twitches and jerks its head
+  let look = 0;
+  if (D.f === P.f && pose !== 'lunge') { look = Math.atan2(P.y - D.y, P.x - D.x) - D.heading; look = Math.atan2(Math.sin(look), Math.cos(look)); }
+  M.head.rotation.y = -clamp(look, -1.3, 1.3) + tw() * .4; M.head.rotation.z = tw() * .5 + Math.sin(t * 9) * .1;
 }
 function photoTex(canvas) { const t = new THREE.CanvasTexture(canvas); t.minFilter = THREE.LinearFilter; return t; }
 /* ---- keys and the shotgun lying around ---- */
@@ -1888,7 +2009,7 @@ function initThree() {
   resize();
   return true;
 }
-function buildWorld() { buildShell(); buildDoors(); buildStairs(); buildFurniture(); buildLamps(); mergeStatic(); buildDamian(); }
+function buildWorld() { buildShell(); buildDoors(); buildStairs(); buildFurniture(); buildLamps(); mergeStatic(); buildDamian(); buildMonster(); }
 
 /* =====================================================================
    DRAWING A FRAME
@@ -1920,7 +2041,7 @@ function renderFrame(now, dt) {
   const kick = Math.max(0, 1 - (now - gunKickAt) / 120);
   gunLight.intensity = kick * 3; gunLight.position.set(camera.position.x + _fwd.x * .6, camera.position.y, camera.position.z + _fwd.z * .6);
   // Damian
-  if (DM) animateDamian(t, dt, state === 'play' || state === 'paused');
+  if (DM) { animateDamian(t, dt, state === 'play' || state === 'paused'); animateMonster(t, dt); }
   // knocked-over vases, plates, bottles and buckets tip onto their side
   traps.forEach(tr => {
     if (!tr.down) return;
@@ -2049,32 +2170,83 @@ function drawKeyHud() {
 /* =====================================================================
    JUMPSCARE, DEATH, WIN
    ===================================================================== */
-let scareHead = null;
+let scareHead = null, SC = null;
+// Caught! The monster lunges into your face in 3D, then it cuts to a glitching, screaming close-up of Damian's face.
 function caught() {
   state = 'scare'; scareT = performance.now(); deaths++;
   if (document.pointerLockElement) document.exitPointerLock();
-  $('hud').hidden = true; $('touch').style.display = 'none'; $('danger').style.opacity = 0;
+  $('hud').hidden = true; $('touch').style.display = 'none';
   scareHead = HEADS[headIndex];
   if (AC) { chaseGain.gain.setTargetAtTime(0, AC.currentTime, .02); droneGain.gain.setTargetAtTime(0, AC.currentTime, .02); }
-  $('scare').style.display = 'block';
-  sfx.death();
+  SC = { cx: camera.position.x, cy: camera.position.y, cz: camera.position.z, ground: groundAt(P.f, P.x, P.y), yaw: P.a, shown: false };
+  D.monster = true; D.morphT = 0; D.mode = 'chase';
+  $('scare').style.display = 'none';
+  sfx.death(); sfx.scareBoom(); scream.stop(); scream.start(); scream.set(1.3, 0);
 }
-const SCARE_SECONDS = 2.6, RETRY_DELAY = 1600;
+function tinted(canvas, col) {   // one color channel of the face, for the glitchy color split
+  const c = mk(canvas.width, canvas.height), x = c.getContext('2d');
+  x.drawImage(canvas, 0, 0); x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, c.width, c.height);
+  x.globalCompositeOperation = 'destination-in'; x.drawImage(canvas, 0, 0); return c;
+}
+function staticCanvas() {
+  const c = mk(160, 90), x = c.getContext('2d'), img = x.createImageData(160, 90);
+  for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  x.putImageData(img, 0, 0); return c;
+}
+const SCARE_SECONDS = 3, RETRY_DELAY = 1600, LUNGE_3D = .55;
 function drawScare(now) {
-  const c = $('scare'), x = c.getContext('2d'), W = c.width, H = c.height, e = (now - scareT) / 1000;
-  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
-  const lunge = e > 1.25, head = lunge ? HEADS[(headIndex + 3) % HEADS.length] : scareHead;
-  const grow = Math.min(1, e / .12), size = Math.max(W, H) * (lunge ? 1.6 + (e - 1.25) * .5 : .55 + .75 * grow) * (1 + Math.sin(e * 40) * .03);
-  const fade = clamp((SCARE_SECONDS - e) / .5, 0, 1), jit = 70 * (lunge ? 1.4 : 1) * fade;
-  x.save(); x.globalAlpha = fade; x.translate(W / 2 + (Math.random() - .5) * jit, H / 2 + (Math.random() - .5) * jit); x.rotate((Math.random() - .5) * (lunge ? .3 : .12));
-  x.drawImage(head.canvas, -size / 2, -size / 2, size, size);
-  x.scale(size / head.canvas.width, size / head.canvas.width); x.translate(-head.canvas.width / 2, -head.canvas.width / 2);
-  glowEyes(x, head, 1, 1); x.restore();
-  x.fillStyle = `rgba(${lunge ? 220 : 180},0,0,${(.25 + .2 * Math.sin(e * 25)) * fade})`; x.fillRect(0, 0, W, H);
+  const e = (now - scareT) / 1000;
+  if (e < LUNGE_3D) {   // part 1: the monster rushes at you, filling the screen
+    const k = e / LUNGE_3D, d = 2.6 - 2.3 * k * k, fx = Math.cos(SC.yaw), fz = Math.sin(SC.yaw);
+    MON.g.visible = true; DM.g.visible = false;
+    MON.g.position.set(SC.cx + fx * d, SC.ground, SC.cz + fz * d); MON.g.rotation.y = Math.PI / 2 - (SC.yaw + Math.PI);
+    animateMonster(now / 1000, .016, 'lunge');
+    const sh = .03 + k * .1, face = new THREE.Vector3();
+    MON.g.updateMatrixWorld(true); MON.face.getWorldPosition(face);
+    camera.position.set(SC.cx + (Math.random() - .5) * sh, SC.cy + (Math.random() - .5) * sh, SC.cz + (Math.random() - .5) * sh);
+    camera.lookAt(face.x + (Math.random() - .5) * sh, face.y + (Math.random() - .5) * sh, face.z); camera.rotateZ((Math.random() - .5) * .1);   // stare it right in the face
+    flashlight.position.copy(camera.position); flashlight.target.position.copy(face); flashlight.intensity = Math.random() < .25 ? .5 : 3.2;
+    renderer.render(scene, camera);
+    octx.clearRect(0, 0, VW, VH); octx.fillStyle = `rgba(160,0,0,${.15 + k * .35})`; octx.fillRect(0, 0, VW, VH);
+    $('danger').style.opacity = 1;
+    return;
+  }
+  // part 2: a screaming, glitching close-up
+  const c = $('scare'), x = c.getContext('2d'), W = c.width, H = c.height;
+  if (!SC.shown) {
+    SC.shown = true; c.style.display = 'block'; $('danger').style.opacity = 0;
+    SC.alt = HEADS[(headIndex + 3) % HEADS.length];
+    SC.t1 = [tinted(scareHead.canvas, '#ff0000'), tinted(scareHead.canvas, '#00ffff')];
+    SC.t2 = [tinted(SC.alt.canvas, '#ff0000'), tinted(SC.alt.canvas, '#00ffff')];
+    SC.noise = [staticCanvas(), staticCanvas(), staticCanvas()];
+  }
+  x.imageSmoothingEnabled = true; x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  const lunge = e > 1.5, head = lunge ? SC.alt : scareHead, tints = lunge ? SC.t2 : SC.t1, src = head.canvas;
+  const end = e > SCARE_SECONDS - .4;
+  if (!end && Math.random() > .06) {   // (sometimes it cuts to black for a frame)
+    const grow = Math.min(1, (e - LUNGE_3D) / .1), size = Math.max(W, H) * (lunge ? 1.8 + (e - 1.5) * .7 : 1 + .45 * grow) * (1 + Math.sin(e * 45) * .04);
+    const jit = 90 * (lunge ? 1.6 : 1);
+    x.save(); x.translate(W / 2 + (Math.random() - .5) * jit, H / 2 + (Math.random() - .5) * jit); x.rotate((Math.random() - .5) * (lunge ? .35 : .15)); x.scale(1, lunge ? 1.28 : 1.1);
+    const ab = (10 + Math.random() * 25) * (lunge ? 2 : 1);   // the red / blue color split
+    x.globalCompositeOperation = 'lighter'; x.globalAlpha = .6;
+    x.drawImage(tints[0], -size / 2 - ab, -size / 2, size, size); x.drawImage(tints[1], -size / 2 + ab, -size / 2, size, size);
+    x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+    if (Math.random() < .35) {   // torn into glitchy slices
+      const n = 14, sh = src.height / n, dh = size / n;
+      for (let i = 0; i < n; i++) { const off = Math.random() < .5 ? 0 : (Math.random() - .5) * size * .18; x.drawImage(src, 0, i * sh, src.width, sh, -size / 2 + off, -size / 2 + i * dh, size, dh + 1); }
+    } else x.drawImage(src, -size / 2, -size / 2, size, size);
+    x.scale(size / src.width, size / src.width); x.translate(-src.width / 2, -src.height / 2);
+    glowEyes(x, head, 1, 1); glowEyes(x, head, 1, .8);   // extra-bright eyes
+    x.restore();
+  }
+  x.imageSmoothingEnabled = false; x.globalAlpha = .16 + Math.random() * .16 + (end ? .5 : 0);
+  x.drawImage(SC.noise[Math.floor(Math.random() * 3)], 0, 0, W, H); x.globalAlpha = 1;
+  if (Math.random() < .07 && !end) { x.globalCompositeOperation = 'difference'; x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.globalCompositeOperation = 'source-over'; }
+  x.fillStyle = `rgba(${lunge ? 230 : 180},0,0,${.22 + .2 * Math.sin(e * 25)})`; x.fillRect(0, 0, W, H);
   if (e > SCARE_SECONDS) showDeathScreen();
 }
 function showDeathScreen() {
-  $('scare').style.display = 'none'; state = 'dead';
+  $('scare').style.display = 'none'; state = 'dead'; scream.stop(); D.monster = false; $('danger').style.opacity = 0;
   $('deadStats').textContent = `${MODE.label} mode · Deaths: ${deaths}${P.hasGun ? ` · You kept the shotgun (${P.shells} shell${P.shells === 1 ? '' : 's'} left)` : ''}`; $('dead').hidden = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const btn = $('retryBtn'); btn.disabled = true; btn.textContent = '...';
@@ -2154,6 +2326,7 @@ function win() {
   state = 'ending'; if (document.pointerLockElement) document.exitPointerLock();
   $('hud').hidden = true; $('touch').style.display = 'none'; $('danger').style.opacity = 0;
   if (AC) { chaseGain.gain.setTargetAtTime(0, AC.currentTime, .1); droneGain.gain.setTargetAtTime(.015, AC.currentTime, .5); }
+  scream.stop(); D.monster = false; D.morphT = 0;
   EXT = buildExterior(); scene.add(EXT.group);
   END = { t0: performance.now(), stepT: 0, said: false, slam: false, started: false, engine: null, text: false, fadedIn: false, saved: { bg: scene.background, fog: scene.fog } };
   scene.background = new THREE.Color(MODE.red ? 0x120406 : 0x070a14); scene.fog = new THREE.FogExp2(scene.background.getHex(), .018);
