@@ -122,14 +122,14 @@ button{font:inherit;color:inherit;cursor:pointer}
   <p>Search the basement, ground floor and upstairs for the <b>5 keys</b>, then unlock the <b>front door</b>.
      If he catches you, you drop every key you're holding.</p>
   <p class="small">He sees what's in front of him and <b>hears</b> you run, slam doors and drop things. Hide <b>under beds</b> and in <b>wardrobes</b> (they glow green).
-     Find the <b>blowgun</b> to knock him out for a while.</p>
+     You have a <b>3-barrel shotgun</b> with only <b>2 shells</b> and no way to reload. Each hit knocks him out for a while. Make them count.</p>
   <div class="controls" id="ctrlDesk">
     <span><b>WASD</b> / arrows</span><span>move</span>
     <span><b>Mouse</b></span><span>look around (up and down too)</span>
     <span><b>Shift</b></span><span>run (loud, uses stamina)</span>
     <span><b>C</b> / Ctrl</span><span>crouch (slow but silent)</span>
     <span><b>E</b></span><span>open / close doors, hide, get out</span>
-    <span><b>Click</b> / G</span><span>shoot a dart (once you find the blowgun)</span>
+    <span><b>Click</b> / G</span><span>fire the shotgun (2 shells, no reload)</span>
     <span><b>F</b></span><span>flashlight on / off</span>
     <span><b>M</b></span><span>show / hide map</span>
   </div>
@@ -138,7 +138,7 @@ button{font:inherit;color:inherit;cursor:pointer}
     <span><b>Right side</b></span><span>drag to look around</span>
     <span><b>RUN</b> / <b>CROUCH</b></span><span>hold to run, tap to crouch</span>
     <span><b>USE</b></span><span>doors, beds, wardrobes</span>
-    <span><b>SHOOT</b></span><span>fire a dart</span>
+    <span><b>SHOOT</b></span><span>fire the shotgun (2 shells)</span>
     <span><b>Tip</b></span><span>turn your phone sideways</span>
   </div>
   <div class="warn">⚠ Loud jumpscares and screaming. Turn your volume down if you're wearing headphones.</div>
@@ -206,12 +206,11 @@ const CONFIG = {
   runNoise: 10,            // how far (in tiles, through hallways) running can be heard
   walkNoise: 3.5,
   hideCheckSeconds: 20,    // hide longer than this and he comes to check your hiding spot
-  // the blowgun
-  stunSeconds: 12,         // how long a dart knocks Damian out
-  gunDarts: 2,             // darts that come with the blowgun
-  dartPacks: 2,            // extra dart bundles hidden around the house
-  dartsPerPack: 2,
-  dartRange: 14,
+  // the 3-barrel shotgun you start with
+  stunSeconds: 12,         // how long a hit knocks Damian out
+  shells: 2,               // shots for the whole game: there is no reloading
+  shotgunRange: 9,         // tiles
+  shotgunNoise: 18,        // how far away he hears a shot
 };
 
 const $ = id => document.getElementById(id);
@@ -482,11 +481,11 @@ function wallTexture(f, type, mx, my, fromX, fromY) {
 }
 
 /* =====================================================================
-   SPRITES: Damian's head, furniture, keys, the blowgun and darts.
+   SPRITES: Damian's head, furniture and keys.
    Each is pre-rendered at several brightness levels for the flashlight.
    ===================================================================== */
 const LEVELS = 10;
-let HEADS = [], KEY_SPRITE = null, headIndex = 0, PROP_SPR = {}, GUN_SPR = null, DARTS_SPR = null, DART_SPR = null;
+let HEADS = [], KEY_SPRITE = null, headIndex = 0, PROP_SPR = {};
 function makeHead(img, cfg, S) {
   const w = img.naturalWidth, h = img.naturalHeight;
   const lx = cfg.leftEye[0] * w, ly = cfg.leftEye[1] * h, rx = cfg.rightEye[0] * w, ry = cfg.rightEye[1] * h;
@@ -536,21 +535,6 @@ function buildSprites() {
     x.strokeStyle = gold; x.lineWidth = 5; x.beginPath(); x.arc(32, 20, 8, 0, TAU); x.stroke();
     x.fillStyle = gold; x.fillRect(29.5, 27, 5, 24); x.fillRect(34, 41, 7, 4); x.fillRect(34, 47, 5, 4);
   }, .45);
-  GUN_SPR = spriteLevels(x => {   // the blowgun: a long wooden tube
-    glowHalo(x, 'rgba(255,170,80,.5)');
-    x.save(); x.translate(32, 32); x.rotate(-.6);
-    x.fillStyle = '#8a5a2a'; x.fillRect(-28, -3, 56, 6); x.fillStyle = '#5a3a1a'; x.fillRect(-28, -4, 6, 8); x.fillRect(10, -3, 3, 6);
-    x.fillStyle = '#222'; x.beginPath(); x.arc(28, 0, 2, 0, TAU); x.fill(); x.restore();
-  }, .45);
-  DARTS_SPR = spriteLevels(x => {   // a bundle of darts with red feathers
-    glowHalo(x, 'rgba(255,170,80,.45)');
-    [-6, 0, 6].forEach((o, i) => {
-      x.save(); x.translate(32 + o, 34); x.rotate(-.3 + i * .25);
-      x.fillStyle = '#ccc'; x.fillRect(-1, -16, 2, 26); x.fillStyle = '#c22'; x.beginPath(); x.moveTo(-5, 10); x.lineTo(0, 4); x.lineTo(5, 10); x.lineTo(0, 16); x.closePath(); x.fill();
-      x.restore();
-    });
-  }, .45);
-  DART_SPR = spriteLevels(x => { x.fillStyle = '#ddd'; x.fillRect(16, 31, 30, 2); x.fillStyle = '#c22'; x.fillRect(40, 28, 8, 8); }, .5);
   PROP_SPR.table = spriteLevels(x => {
     x.fillStyle = '#3a2412'; x.fillRect(8, 44, 4, 20); x.fillRect(52, 44, 4, 20);
     x.fillStyle = '#5a3a20'; x.fillRect(2, 38, 60, 7); x.fillStyle = '#d8d0b8'; x.fillRect(26, 34, 4, 5); x.fillStyle = '#ffcc66'; x.fillRect(27, 31, 2, 3);
@@ -649,8 +633,17 @@ const sfx = {
   stairs() { if (!AC) return; const t = AC.currentTime; for (let i = 0; i < 4; i++) noiseHit(t + i * .12, .08, 500, .08); },
   hide() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .25, 900, .2, 'bandpass'); tone(t, 200, 150, .2, .06, 'square'); },
   breath() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .9, 700, .05, 'bandpass'); noiseHit(t + 1.1, .7, 500, .035, 'bandpass'); },
-  blow() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .18, 2500, .25, 'highpass'); tone(t, 600, 200, .12, .05, 'sine'); },
-  thud() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .1, 800, .2); tone(t, 300, 120, .1, .1, 'triangle'); },
+  // a huge 3-barrel BOOM: a sharp crack, a heavy low thump and a long echo through the house
+  shotgun() {
+    if (!AC) return; const t = AC.currentTime, out = AC.createGain(); out.gain.value = 1; out.connect(master); out.connect(reverb);
+    const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(), sh = AC.createWaveShaper();
+    s.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.setValueAtTime(6000, t); f.frequency.exponentialRampToValueAtTime(300, t + .6);
+    g.gain.setValueAtTime(1.6, t); g.gain.exponentialRampToValueAtTime(.0001, t + .9); sh.curve = distortion(30);
+    s.connect(f); f.connect(sh); sh.connect(g); g.connect(out); s.start(t, Math.random()); s.stop(t + 1);
+    const o = AC.createOscillator(), og = AC.createGain(); o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(30, t + .5);
+    og.gain.setValueAtTime(1.4, t); og.gain.exponentialRampToValueAtTime(.0001, t + .6); o.connect(og); og.connect(out); o.start(t); o.stop(t + .65);
+    noiseHit(t + .25, .5, 400, .15);   // shells rattling
+  },
   hit() { if (!AC) return; const t = AC.currentTime; noiseHit(t, .12, 1500, .3); tone(t, 160, 60, .5, .35, 'sawtooth'); },
   click() { if (!AC) return; tone(AC.currentTime, 1200, 0, .05, .08, 'square'); },
   death() {
@@ -711,14 +704,14 @@ function playVoice(vol, pan, rate, force, name) {
 const VW = 480; let VH = 270;
 const view = $('view'), ctx = view.getContext('2d');
 const P = { f: START.f, x: START.x, y: START.y, a: START.a, pitch: 0, stamina: 100, tired: false, bob: 0, stepT: 0,
-  crouch: false, light: true, hidden: null, hideT: 0, noiseT: 0, camZ: .5, hasGun: false, darts: 0 };
+  crouch: false, light: true, hidden: null, hideT: 0, noiseT: 0, camZ: .5, shells: 0 };
 function look(dx, dy, scale) {
   P.a += dx * .003 * lookSpeed * scale;
   P.pitch = clamp(P.pitch - dy * .9 * lookSpeed * scale * (VH / 270), -VH * .42, VH * .42);
 }
 const keys = { held: 0 };
-let items = [];            // keys, the blowgun and dart bundles lying around the house
-const darts = [];          // darts in flight
+let items = [];            // the keys lying around the house
+let gunKickAt = -1e9, gunEmptyAt = -1e9;   // when the shotgun last fired / ran out (for the recoil and the toss animation)
 // Damian's brain. mode: 'patrol' | 'investigate' | 'chase' | 'search' | 'check' (coming for your hiding spot) | 'stunned'
 const D = { f: 0, x: 0, y: 0, path: [], repath: 0, awakeAt: 0, field: null, voiceT: 0, mode: 'patrol', heading: 0, goal: null, goalKey: '',
   lastSeen: null, lostT: 0, seenAt: 0, idleT: 0, searchT: 0, footT: 0, knowsHide: null, doorWait: 0, stunUntil: 0 };
@@ -736,7 +729,7 @@ function resize() {
 function say(text, secs) { const m = $('msg'); m.textContent = text; m.style.opacity = 1; msgT = (secs || 3.5); }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-// Scatter the 5 keys, the blowgun and the dart bundles around all three floors.
+// Scatter the 5 keys around all three floors.
 function scatterItems() {
   const field = bfs3(node(START.f, Math.floor(START.x), Math.floor(START.y))), cells = [];
   for (let f = 0; f < NF; f++) for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++)
@@ -750,8 +743,6 @@ function scatterItems() {
   };
   items = [];
   for (let i = 0; i < CONFIG.keysNeeded; i++) { const c = pick(4, 2); if (c) items.push({ kind: 'key', f: c.f, x: c.x + .5, y: c.y + .5, phase: Math.random() * TAU }); }
-  if (!P.hasGun) { const c = pick(3); if (c) items.push({ kind: 'gun', f: c.f, x: c.x + .5, y: c.y + .5, phase: 0 }); }
-  for (let i = 0; i < CONFIG.dartPacks; i++) { const c = pick(3); if (c) items.push({ kind: 'darts', f: c.f, x: c.x + .5, y: c.y + .5, phase: Math.random() * TAU }); }
   keys.held = 0; drawKeyHud();
 }
 function placeDamian() {
@@ -766,8 +757,8 @@ function placeDamian() {
 }
 function newLife(fresh) {
   P.f = START.f; P.x = START.x; P.y = START.y; P.a = START.a; P.pitch = 0; P.stamina = 100; P.tired = false;
-  P.crouch = false; P.hidden = null; P.hideT = 0; P.light = true; P.camZ = .5; noises.length = 0; darts.length = 0;
-  if (fresh) { P.hasGun = false; P.darts = 0; }   // you keep the blowgun (and darts) between lives
+  P.crouch = false; P.hidden = null; P.hideT = 0; P.light = true; P.camZ = .5; noises.length = 0;
+  if (fresh) P.shells = CONFIG.shells;   // dying doesn't give your shells back
   DOOR_OPEN.clear();
   $('crouchBtn').classList.remove('on'); $('lightBtn').classList.remove('on');
   scatterItems(); placeDamian(); danger = 0; updateAmmo();
@@ -912,38 +903,81 @@ function changeFloor(st) {
   say(FL[P.f].name, 1.6);
 }
 
-/* ---- the blowgun ---- */
+/* ---- the 3-barrel shotgun: 2 shells for the whole game, no reloading ---- */
 function updateAmmo() {
-  const a = $('ammo'); a.style.display = P.hasGun ? 'block' : 'none';
-  a.textContent = `🎯 Blowgun · ${P.darts} dart${P.darts === 1 ? '' : 's'}${isTouch ? '' : ' (click / G)'}`;
-  $('shootBtn').style.display = P.hasGun && isTouch ? 'block' : 'none';
+  const a = $('ammo'); a.style.display = 'block';
+  a.textContent = P.shells > 0 ? `💥 Shotgun · ${P.shells} shell${P.shells === 1 ? '' : 's'} left${isTouch ? '' : ' (click / G)'}` : '💥 Shotgun · empty';
+  $('shootBtn').style.display = P.shells > 0 && isTouch ? 'block' : 'none';
 }
 function shoot() {
-  if (state !== 'play' || !P.hasGun || P.hidden) return;
+  if (state !== 'play' || P.hidden || P.shells <= 0) return;
   const now = performance.now(); if (now < shotReady) return;
-  if (P.darts <= 0) { sfx.click(); say('Out of darts. Look for more around the house.', 2); shotReady = now + 400; return; }
-  shotReady = now + 800; P.darts--; updateAmmo(); sfx.blow();
-  darts.push({ f: P.f, x: P.x, y: P.y, dx: Math.cos(P.a), dy: Math.sin(P.a), z: clamp(-P.pitch / VH * .9, -.3, .3), went: 0 });
+  shotReady = now + 900; P.shells--; gunKickAt = now; if (!P.shells) gunEmptyAt = now + 700;
+  updateAmmo(); sfx.shotgun(); flash('rgba(255,200,120,.35)');
+  // the spread: anything inside a cone in front of you gets hit, as long as no wall is in the way
+  const dx = D.x - P.x, dy = D.y - P.y, fwd = dx * Math.cos(P.a) + dy * Math.sin(P.a), side = Math.abs(-dx * Math.sin(P.a) + dy * Math.cos(P.a));
+  const hit = D.f === P.f && D.mode !== 'stunned' && fwd > 0 && fwd < CONFIG.shotgunRange && side < .5 + fwd * .14 && lineOfSight(P.f, P.x, P.y, D.x, D.y);
+  if (hit) stunDamian();
+  else {
+    makeNoise(P.f, P.x, P.y, CONFIG.shotgunNoise);   // a miss is LOUD: he knows exactly where you are
+    say(P.shells ? 'Missed! He heard that. 1 shell left.' : 'Missed... and that was your last shell. He heard that. RUN.', 3);
+  }
 }
+function flash(col) { const fd = $('fade'); fd.style.transition = 'none'; fd.style.background = col; fd.style.opacity = 1; void fd.offsetWidth; fd.style.transition = 'opacity .25s'; fd.style.opacity = 0; setTimeout(() => fd.style.background = '', 300); }
 function stunDamian() {
   D.mode = 'stunned'; D.stunUntil = performance.now() + CONFIG.stunSeconds * 1000; D.knowsHide = null; D.goal = null;
   sfx.hit(); playVoice(.9, 0, .5, true);
-  say(`Direct hit! Damian is knocked out for ${CONFIG.stunSeconds} seconds. GO!`, 3.5);
+  say(`BOOM! Damian is knocked out for ${CONFIG.stunSeconds} seconds. GO!${P.shells ? '' : ' (That was your last shell.)'}`, 3.5);
 }
-function updateDarts(dt) {
-  for (let i = darts.length - 1; i >= 0; i--) {
-    const d = darts[i]; let hit = null;
-    for (let s = 0; s < 4 && !hit; s++) {
-      const step = 15 * dt / 4; d.x += d.dx * step; d.y += d.dy * step; d.went += step;
-      if (D.f === d.f && D.mode !== 'stunned' && Math.hypot(D.x - d.x, D.y - d.y) < .45) hit = 'damian';
-      else if (!passSight(d.f, Math.floor(d.x), Math.floor(d.y))) hit = 'wall';
-      else if (d.went > CONFIG.dartRange) hit = 'floor';
-    }
-    if (!hit) continue;
-    darts.splice(i, 1);
-    if (hit === 'damian') stunDamian();
-    else { if (d.f === P.f) sfx.thud(); makeNoise(d.f, d.x - d.dx * .3, d.y - d.dy * .3, 8); }   // a missed dart makes noise: use it to distract him
+// The shotgun in your hands, drawn on top of the 3D view: three barrels, a wooden stock and your hand.
+const gunCv = mk(VW, 640), gctx = gunCv.getContext('2d');
+function drawShotgun(now) {
+  if (P.hidden || state !== 'play') return;
+  const toss = P.shells > 0 ? 0 : clamp((now - gunEmptyAt) / 600, 0, 1);
+  if (toss >= 1) return;
+  const kick = Math.max(0, 1 - (now - gunKickAt) / 260), B = VH;
+  const ox = Math.sin(P.bob) * 4 + kick * 8, oy = Math.abs(Math.cos(P.bob)) * 3 + kick * 22 + toss * VH * .7;
+  const x = gctx; x.clearRect(0, 0, VW, gunCv.height);
+  x.save(); x.translate(ox, oy);
+  const M = [VW * .555, B - 96 - kick * 26], R = [VW * .75, B + 62];   // muzzle end and back end of the barrels
+  const dl = Math.hypot(M[0] - R[0], M[1] - R[1]), d = [(M[0] - R[0]) / dl, (M[1] - R[1]) / dl], n = [-d[1], d[0]];
+  const at = (t, off) => [R[0] + (M[0] - R[0]) * t + n[0] * off, R[1] + (M[1] - R[1]) * t + n[1] * off];
+  const quad = (a, b, c, e, fill) => { x.fillStyle = fill; x.beginPath(); x.moveTo(...a); x.lineTo(...b); x.lineTo(...c); x.lineTo(...e); x.closePath(); x.fill(); };
+  const widthAt = t => 38 - 24 * t;   // half-width of the 3 barrels together, shrinking with distance
+  // wooden forend and stock under the barrels, sticking out on the right like a real shotgun
+  quad(at(0, -widthAt(0) - 2), at(.66, -widthAt(.66) - 2), at(.66, widthAt(.66) + 7), at(0, widthAt(0) + 34), '#4e2a14');
+  quad(at(.04, widthAt(.04) * .3), at(.62, widthAt(.62) * .4), at(.62, widthAt(.62) + 5), at(.04, widthAt(.04) + 28), '#7a4424');
+  quad(at(.04, widthAt(.04) + 14), at(.62, widthAt(.62) + 2), at(.62, widthAt(.62) + 4), at(.04, widthAt(.04) + 20), '#9a5a32');   // shine on the wood
+  // the three barrels, side by side
+  for (let b = -1; b <= 1; b++) {
+    const c0 = b * widthAt(0) * .66, c1 = b * widthAt(1) * .66, r0 = widthAt(0) * .34, r1 = widthAt(1) * .34;
+    quad(at(0, c0 - r0), at(1, c1 - r1), at(1, c1 + r1), at(0, c0 + r0), '#44474e');
+    quad(at(0, c0 + r0 * .45), at(1, c1 + r1 * .45), at(1, c1 + r1), at(0, c0 + r0), '#2b2d32');   // shadow side
+    quad(at(0, c0 - r0 * .6), at(1, c1 - r1 * .6), at(1, c1 - r1 * .2), at(0, c0 - r0 * .2), '#a4aab3');   // shine along the top
+    const m = at(1, c1); x.fillStyle = '#5b5f66'; x.beginPath(); x.ellipse(m[0], m[1], r1 * 1.05, r1 * .8, Math.atan2(d[1], d[0]), 0, TAU); x.fill();
+    x.fillStyle = '#060606'; x.beginPath(); x.ellipse(m[0], m[1], r1 * .62, r1 * .45, Math.atan2(d[1], d[0]), 0, TAU); x.fill();
   }
+  // a metal band holding the barrels together, and the breech near you
+  quad(at(.72, -widthAt(.72) - 1), at(.76, -widthAt(.76) - 1), at(.76, widthAt(.76) + 1), at(.72, widthAt(.72) + 1), '#2a2c30');
+  quad(at(0, -widthAt(0) - 3), at(.12, -widthAt(.12) - 3), at(.12, widthAt(.12) + 3), at(0, widthAt(0) + 3), '#2f3237');
+  // your hand gripping the forend, arm coming up from the bottom of the screen
+  const h0 = at(.46, -widthAt(.46) - 6), h1 = at(.64, -widthAt(.64) + 2), h2 = at(.6, -widthAt(.6) * .25);
+  const skin = x.createLinearGradient(h0[0] - 30, 0, h2[0] + 10, 0); skin.addColorStop(0, '#a8704e'); skin.addColorStop(.6, '#d9a27a'); skin.addColorStop(1, '#b97f5a');
+  x.fillStyle = skin; x.beginPath(); x.moveTo(h0[0] - 34, B + 50); x.lineTo(h0[0] - 14, h0[1] + 4); x.quadraticCurveTo(h1[0] - 10, h1[1] - 10, h1[0] + 2, h1[1] - 2);
+  x.lineTo(h2[0], h2[1]); x.quadraticCurveTo(h2[0] + 4, h2[1] + 34, h0[0] + 30, B + 50); x.closePath(); x.fill();
+  x.strokeStyle = 'rgba(90,50,30,.55)'; x.lineWidth = 1.2;
+  for (let i = 0; i < 3; i++) { const p = at(.54 + i * .03, -widthAt(.56) - 2), q = at(.53 + i * .03, -widthAt(.56) * .45); x.beginPath(); x.moveTo(...p); x.lineTo(...q); x.stroke(); }   // fingers wrapped over the barrels
+  x.restore();
+  // light it like the rest of the room: darker with the flashlight off, flickering with the lights
+  x.globalCompositeOperation = 'source-atop'; x.fillStyle = `rgba(0,0,0,${(1 - (P.light ? .85 : .35) * flicker).toFixed(3)})`; x.fillRect(0, 0, VW, gunCv.height);
+  x.globalCompositeOperation = 'source-over';
+  // muzzle flash
+  if (kick > .7) {
+    const m = [M[0] + ox, M[1] + oy], g = x.createRadialGradient(m[0], m[1], 0, m[0], m[1], 46);
+    g.addColorStop(0, 'rgba(255,255,230,1)'); g.addColorStop(.3, 'rgba(255,190,60,.9)'); g.addColorStop(1, 'rgba(255,90,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(m[0], m[1], 46, 0, TAU); x.fill();
+  }
+  ctx.drawImage(gunCv, 0, 0);
 }
 
 /* ---- Damian's senses ---- */
@@ -1113,15 +1147,8 @@ function update(dt, now) {
       keys.held++; sfx.key(); drawKeyHud(); makeNoise(P.f, P.x, P.y, 6);
       if (keys.held >= CONFIG.keysNeeded) { sfx.open(); say('ALL 5 KEYS! Follow the green arrow to the FRONT DOOR!', 5); exitRepath = 0; }
       else say(`Key ${keys.held} of ${CONFIG.keysNeeded}. The jingle might have been heard...`, 3);
-    } else if (it.kind === 'gun') {
-      P.hasGun = true; P.darts += CONFIG.gunDarts; sfx.pickup(); updateAmmo();
-      say(`You found a BLOWGUN with ${CONFIG.gunDarts} darts! ${isTouch ? 'Tap SHOOT' : 'Click'} to knock Damian out.`, 4.5);
-    } else {
-      P.darts += CONFIG.dartsPerPack; sfx.pickup(); updateAmmo();
-      say(P.hasGun ? `+${CONFIG.dartsPerPack} darts.` : `+${CONFIG.dartsPerPack} darts. Now find the blowgun...`, 2.5);
     }
   }
-  updateDarts(dt);
 
   // the front door
   if (P.f === EXIT.f && Math.hypot(P.x - (EXIT.x + .5), P.y - (EXIT.y + .5)) < 1.3) {
@@ -1200,7 +1227,7 @@ function updateStatus(now) {
   pr.style.display = label && !isTouch ? 'block' : 'none'; if (pr.textContent !== label) pr.textContent = label;
   hb.style.display = label ? 'block' : 'none'; hb.textContent = P.hidden ? 'LEAVE' : door ? 'DOOR' : 'HIDE';
   $('crouchTag').style.display = P.crouch ? 'block' : 'none';
-  $('crosshair').style.display = P.hasGun && !P.hidden ? 'block' : 'none';
+  $('crosshair').style.display = P.shells > 0 && !P.hidden ? 'block' : 'none';
   const ft = '📍 ' + FL[P.f].name; if ($('floorTag').textContent !== ft) $('floorTag').textContent = ft;
 }
 function render(now) {
@@ -1237,11 +1264,10 @@ function render(now) {
     if (hit === 9) light = Math.max(light, .45);
     ctx.fillStyle = SHADE[63 - Math.round(light * 63)]; ctx.fillRect(x, top, 1, lineH);
   }
-  // sprites on this floor, far to near: furniture, items, darts, Damian
+  // sprites on this floor, far to near: furniture, keys, Damian
   const sprites = [];
   for (const p of PROPS) if (p.f === P.f) sprites.push({ x: p.x + .5, y: p.y + .5, kind: 'prop', p });
   for (const it of items) if (it.f === P.f) sprites.push({ x: it.x, y: it.y, kind: it.kind, it });
-  for (const d of darts) if (d.f === P.f) sprites.push({ x: d.x, y: d.y, kind: 'dart', d });
   if (state === 'play' && D.f === P.f) sprites.push({ x: D.x, y: D.y, kind: 'damian' });
   sprites.forEach(s => s.dd = (s.x - px) ** 2 + (s.y - py) ** 2);
   sprites.sort((a, b) => b.dd - a.dd);
@@ -1249,9 +1275,6 @@ function render(now) {
   for (const s of sprites) {
     if (s.kind === 'prop') drawSprite(PROP_SPR[s.p.type].levels, s.x, s.y, 1, 0, 1, 0, horizon, dX, dY, plX, plY);
     else if (s.kind === 'key') drawSprite(KEY_SPRITE.levels, s.x, s.y, .32, -.18 + Math.sin(t * 2.5 + s.it.phase) * .04, Math.max(.15, Math.abs(Math.cos(t * 2 + s.it.phase))), .55, horizon, dX, dY, plX, plY);
-    else if (s.kind === 'gun') drawSprite(GUN_SPR.levels, s.x, s.y, .4, -.22 + Math.sin(t * 2) * .03, 1, .55, horizon, dX, dY, plX, plY);
-    else if (s.kind === 'darts') drawSprite(DARTS_SPR.levels, s.x, s.y, .32, -.24 + Math.sin(t * 2.3 + s.it.phase) * .03, 1, .55, horizon, dX, dY, plX, plY);
-    else if (s.kind === 'dart') drawSprite(DART_SPR.levels, s.x, s.y, .14, s.d.z, 1, .6, horizon, dX, dY, plX, plY);
     else {
       const head = HEADS[headIndex];
       if (D.mode === 'stunned') drawSprite(head.sleep, s.x, s.y, .85, -.36, 1, .08, horizon, dX, dY, plX, plY);   // slumped on the floor
@@ -1271,6 +1294,7 @@ function render(now) {
   g = ctx.createRadialGradient(VW / 2, VH / 2, VH * .15, VW / 2, VH / 2, VW * .62);
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.92)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  drawShotgun(now);
   $('danger').style.opacity = (danger * (.55 + .45 * Math.sin(t * (4 + danger * 8)) ** 2)).toFixed(3);
   view.style.transform = shake ? `translate(${(Math.random() - .5) * shake * 2}px,${(Math.random() - .5) * shake * 2}px)` : '';
   drawHud();
@@ -1362,7 +1386,7 @@ function drawScare(now) {
 }
 function showDeathScreen() {
   $('scare').style.display = 'none'; state = 'dead';
-  $('deadStats').textContent = `Deaths: ${deaths}${P.hasGun ? ' · You kept the blowgun.' : ''}`; $('dead').hidden = false;
+  $('deadStats').textContent = `Deaths: ${deaths} · Shotgun shells left: ${P.shells}`; $('dead').hidden = false;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   const btn = $('retryBtn'); btn.disabled = true; btn.textContent = '...';
   setTimeout(() => { if (state === 'dead') { btn.disabled = false; btn.textContent = 'TRY AGAIN'; } }, RETRY_DELAY);
