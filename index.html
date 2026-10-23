@@ -125,6 +125,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   <p>Search the basement, ground floor, upstairs and the attic for the <b>5 keys</b>, then unlock the <b>front door</b>.
      If he catches you, you drop every key you're holding.</p>
   <p class="small">He sees what's in front of him and <b>hears</b> you run, slam doors and drop things. Hide <b>under beds</b> and in <b>wardrobes</b>.
+     Crouch to crawl through <b>crawl spaces</b> he can't fit through. Watch your step: vases, plates and bottles <b>crash</b> if you walk into them.
      Somewhere in the house there's a <b>shotgun</b> with only <b>2 shells</b>. Each hit knocks him out for a while.</p>
   <div class="controls" id="ctrlDesk">
     <span><b>WASD</b> / arrows</span><span>move</span>
@@ -237,6 +238,7 @@ function loadImage(src) { return new Promise(res => { const im = new Image(); im
    Legend:  #  wall          .  floor          ,  tiled floor (kitchen / bathroom)
             D  door          X  front door (the exit, needs all 5 keys)
             =  staircase going up from this floor     o  the hole the staircase comes up through
+            ~  crawl space: a little hole through the wall you crouch to crawl through (he can't fit)
             B  bed (hide under)   W  wardrobe (hide inside)   T  table   c  chair   C  couch
             b  bathtub   K  kitchen counter   F  fridge   S  bookshelf   O  boiler   x  crates
             h  fireplace   p  piano   g  grandfather clock   t  toilet   s  sink
@@ -245,7 +247,7 @@ const T = 1.2, CH = 2.5, FH = 2.8, DH = 2.05, SLAB = FH - CH;   // meters: tile 
 const FLOOR_PLANS = [
   { name: 'Basement', rows: [
     '########################',
-    '#......#...............#',
+    '#......~...............#',
     '#.O....#..xx......xx...#',
     '#......D...............#',
     '#.x....#.....x.........#',
@@ -259,13 +261,13 @@ const FLOOR_PLANS = [
     '#.x.....#..W.....#.=...#',
     '#.......D........#.=...#',
     '#..x....#....x...#.=...#',
-    '#.......#........#.=...#',
+    '#.......#........~.=...#',
     '#W....x.#.....W..#.....#',
     '########################'] },
   { name: 'Ground floor', rows: [
     '########################',
     '#KKKKF,,#......g#S.hh.S#',
-    '#,,,,,,,#..ccc..#......#',
+    '#,,,,,,,~..ccc..#......#',
     '#,cTTc,,D..TTT..D..CC..#',
     '#,,,,,,,#..ccc..#......#',
     '#,,,,,,,#.......#p.....#',
@@ -275,7 +277,7 @@ const FLOOR_PLANS = [
     '#......................#',
     '###D######D####D####D###',
     '#.......#.....#,,,#....#',
-    '#S......#.x...#,t,#o...#',
+    '#S......#.x...~,t,#o...#',
     '#S..T...D.....#,,,#o...#',
     '#S......#...xx#s,,#o...#',
     '#.......#.....#,,,#o...#',
@@ -294,9 +296,9 @@ const FLOOR_PLANS = [
     '#......................#',
     '####D######D####D###D###',
     '#.......#.....#....#.#.#',
-    '#BB.....#.T...#.TT.#.=.#',
+    '#BB.....~.T...#.TT.#.=.#',
     '#.......#.c...D....#.=.#',
-    '#.......D.....#....#.=.#',
+    '#.......D.....#....~.=.#',
     '#W......#...x.#x...#.=.#',
     '#......W#xx...#..x.#...#',
     '########################'] },
@@ -327,7 +329,8 @@ const STAIR_DEFS = [
   { from: 2, x: 21, y: 15, dx: 0, dy: -1, len: 4 },  // upstairs up to the attic
 ];
 const MW = 24, MH = 18, N = MW * MH, NF = FLOOR_PLANS.length;
-const CODE = { '#': 1, X: 9, D: 10, '=': 20, o: 21 };
+const CODE = { '#': 1, X: 9, D: 10, '=': 20, o: 21, '~': 30 };
+const CRAWL_H = .8;   // how low the crawl spaces are (meters)
 const PROP_CH = { B: 'bed', W: 'wardrobe', T: 'table', c: 'chair', C: 'couch', b: 'tub', K: 'counter', F: 'fridge', S: 'shelf',
   O: 'boiler', x: 'crate', h: 'fireplace', p: 'piano', g: 'clock', t: 'toilet', s: 'sink' };
 const SINGLE = new Set(['c', 'x', 'W', 'F', 'O', 'g', 't', 's', 'S', 'p']);   // these never join up with a neighbor
@@ -369,10 +372,10 @@ const propAt = (f, x, y) => PROP_AT.get(key3(f, x, y));
 const isWallish = (f, x, y) => { const m = cellM(f, x, y); return m === 1 || m === 9 || m === 10; };
 // plain floor you can stand on (not furniture, not stairs)
 const openFloor = (f, x, y) => cellM(f, x, y) === 0 && !propAt(f, x, y);
-const passPlayer = (f, x, y) => { const m = cellM(f, x, y); return (m === 0 || (m === 10 && isDoorOpen(f, x, y))) && !propAt(f, x, y); };
-const passDamian = (f, x, y) => { const m = cellM(f, x, y); return (m === 0 || m === 10) && !propAt(f, x, y); };   // he opens doors
-const passSight = (f, x, y) => {   // low furniture and stairwells don't block his view; walls, closed doors and tall furniture do
-  const m = cellM(f, x, y); if (m === 1 || m === 9 || (m === 10 && !isDoorOpen(f, x, y))) return false;
+const passPlayer = (f, x, y) => { const m = cellM(f, x, y); if (m === 30) return P.crouch; return (m === 0 || (m === 10 && isDoorOpen(f, x, y))) && !propAt(f, x, y); };   // crawl spaces: only crouched
+const passDamian = (f, x, y) => { const m = cellM(f, x, y); return (m === 0 || m === 10) && !propAt(f, x, y); };   // he opens doors, but can't fit in a crawl space
+const passSight = (f, x, y) => {   // low furniture and stairwells don't block his view; walls, closed doors, crawl spaces and tall furniture do
+  const m = cellM(f, x, y); if (m === 1 || m === 9 || m === 30 || (m === 10 && !isDoorOpen(f, x, y))) return false;
   const p = propAt(f, x, y); return !p || !TALL.has(p.type);
 };
 // Staircases: the steps sit on the lower floor; the floor above has a hole with a railing around it.
@@ -581,6 +584,12 @@ function buildTextures() {
     x.fillStyle = '#050403'; x.fillRect(31, 2, 3, 62); x.fillStyle = 'rgba(90,255,120,.6)'; x.fillRect(32, 4, 1, 58);
     x.fillStyle = '#c9a227'; x.fillRect(27, 30, 2, 5); x.fillRect(36, 30, 2, 5); grime(x, r, 30);
   }, 37);
+  TEX.dress = tex((x, r) => {   // an old lady's faded flowery nightgown
+    x.fillStyle = '#8c95a0'; x.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 26; i++) { const px = r() * 64, py = r() * 64; x.fillStyle = r() < .5 ? '#b07a8a' : '#d8d0c0'; for (let k = 0; k < 4; k++) { x.beginPath(); x.arc(px + Math.cos(k * 1.57) * 1.6, py + Math.sin(k * 1.57) * 1.6, 1.3, 0, TAU); x.fill(); } x.fillStyle = '#6a8a5a'; x.fillRect(px - .5, py - .5, 1, 1); }
+    grime(x, r, 50, 'rgba(70,50,30,.25)'); x.fillStyle = 'rgba(110,20,20,.35)'; x.beginPath(); x.ellipse(40, 44, 7, 10, .3, 0, TAU); x.fill();
+  }, 92);
+  TEX.knit = tex((x, r) => { x.fillStyle = '#5a2a22'; x.fillRect(0, 0, 64, 64); x.strokeStyle = 'rgba(0,0,0,.3)'; for (let i = 0; i < 64; i += 4) { x.beginPath(); for (let j = 0; j <= 64; j += 4) x.lineTo(j, i + (j / 4 % 2) * 2); x.stroke(); } grime(x, r, 20); }, 93);
   TEX.clockFace = tex(x => { x.fillStyle = '#2a1a0c'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#d8d0b8'; x.beginPath(); x.arc(32, 32, 26, 0, TAU); x.fill(); x.strokeStyle = '#222'; x.lineWidth = 3; x.stroke(); x.beginPath(); x.moveTo(32, 32); x.lineTo(32, 12); x.moveTo(32, 32); x.lineTo(44, 38); x.stroke(); }, 38);
   const frontDoor = open => tex((x, r) => {   // the front door with 5 locks
     x.fillStyle = '#120d09'; x.fillRect(0, 0, 64, 64); x.fillStyle = open ? '#4e5a2a' : '#4a2a18'; x.fillRect(8, 2, 48, 62);
@@ -685,17 +694,17 @@ function initAudio() {
   });
 }
 function setVolume(v) { volume = v; if (master) master.gain.setTargetAtTime(v, AC.currentTime, .05); try { localStorage.setItem('damianHorror.volume', v); } catch (e) { } }
-function noiseHit(t, dur, freq, vol, type) {
+function noiseHit(t, dur, freq, vol, type, dest) {
   const s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
   s.buffer = noiseBuf; f.type = type || 'lowpass'; f.frequency.value = freq;
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-  s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random()); s.stop(t + dur + .02);
+  s.connect(f); f.connect(g); g.connect(dest || master); s.start(t, Math.random()); s.stop(t + dur + .02);
 }
-function tone(t, f0, f1, dur, vol, type) {
+function tone(t, f0, f1, dur, vol, type, dest) {
   const o = AC.createOscillator(), g = AC.createGain(); o.type = type || 'sine';
   o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
   g.gain.setValueAtTime(Math.max(vol, .0002), t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+  o.connect(g); g.connect(dest || master); o.start(t); o.stop(t + dur + .02);
 }
 const sfx = {
   step(run) { if (!AC) return; noiseHit(AC.currentTime, .07, run ? 900 : 600, run ? .1 : .06); },
@@ -707,12 +716,26 @@ const sfx = {
   open() { if (!AC) return; const t = AC.currentTime;[392, 523, 659, 784, 1047].forEach((f, i) => tone(t + i * .1, f, 0, .5, .12, 'triangle')); },
   sting() { if (!AC) return; const t = AC.currentTime; tone(t, 900, 300, .8, .18, 'sawtooth'); noiseHit(t, .6, 3000, .15, 'highpass'); },
   spotted() { if (!AC) return; const t = AC.currentTime; tone(t, 1400, 500, .5, .22, 'sawtooth'); tone(t, 70, 35, .6, .5); noiseHit(t, .4, 2500, .25, 'highpass'); },
-  dstep(vol, pan) {
-    if (!AC || vol < .01) return; const t = AC.currentTime, p = AC.createStereoPanner ? AC.createStereoPanner() : null;
-    const o = AC.createOscillator(), g = AC.createGain(); o.frequency.setValueAtTime(65, t); o.frequency.exponentialRampToValueAtTime(32, t + .18);
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
-    o.connect(g); if (p) { p.pan.value = clamp(pan, -1, 1); g.connect(p); p.connect(master); } else g.connect(master); o.start(t); o.stop(t + .25);
-    noiseHit(t, .08, 350, vol * .5);
+  // Damian's footsteps: a heavy thump, the scuff of a slipper and sometimes a creaky floorboard. Muffled through the floor.
+  dstep(vol, pan, muffled) {
+    if (!AC || vol < .01) return; const t = AC.currentTime, p = AC.createStereoPanner ? AC.createStereoPanner() : null, lp = AC.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = muffled ? 260 : 5000;
+    if (p) { p.pan.value = clamp(pan, -1, 1); lp.connect(p); p.connect(master); } else lp.connect(master);
+    tone(t, 78, 34, .22, vol, 'sine', lp); tone(t, 140, 60, .08, vol * .35, 'triangle', lp);
+    noiseHit(t + .02, .12, 900, vol * .45, 'bandpass', lp);
+    if (Math.random() < .3) tone(t + .05, 280 + Math.random() * 120, 190, .3, vol * .1, 'sawtooth', lp);
+  },
+  // something knocked over: a ceramic/glass smash, or a metal bucket clanging and rolling
+  crash(kind) {
+    if (!AC) return; const t = AC.currentTime, out = AC.createGain(); out.gain.value = 1; out.connect(master); out.connect(reverb);
+    if (kind === 'bucket') {
+      [523, 790, 1180, 1610].forEach((f, i) => tone(t, f, f * .98, .9 - i * .15, .14, 'triangle', out)); noiseHit(t, .15, 2500, .25, 'highpass', out);
+      for (let i = 1; i < 7; i++) tone(t + .25 + i * .15, 500 + Math.random() * 500, 0, .1, .06, 'triangle', out);
+    } else {
+      noiseHit(t, .5, 3500, .45, 'highpass', out); noiseHit(t, .12, 600, .4, 'lowpass', out);
+      for (let i = 0; i < 10; i++) tone(t + Math.random() * .35, 2500 + Math.random() * 3500, 0, .06, .08, 'sine', out);
+      for (let i = 0; i < 5; i++) noiseHit(t + .1 + Math.random() * .45, .05, 5000, .12, 'highpass', out);
+    }
   },
   // a long creak for opening doors, a thud for closing
   doorOpen(vol) { if (!AC) return; const t = AC.currentTime, v = vol === undefined ? .2 : vol; tone(t, 170, 260, .55, v * .5, 'sawtooth'); tone(t + .1, 230, 150, .45, v * .35, 'sawtooth'); noiseHit(t, .4, 1200, v * .4, 'bandpass'); },
@@ -790,7 +813,7 @@ function playVoice(vol, pan, rate, force, name) {
    ===================================================================== */
 const VW = 480; let VH = 270;
 const view = $('view'), over = $('over'), octx = over.getContext('2d');
-const EYE = { stand: 1.55, crouch: .95, bed: .2, wardrobe: 1.45 };
+const EYE = { stand: 1.55, crouch: .95, crawl: .45, bed: .2, wardrobe: 1.45 };
 const P = { f: START.f, x: START.x, y: START.y, a: START.a, pitch: 0, stamina: 100, tired: false, bob: 0, stepT: 0, st: null,
   crouch: false, light: true, hidden: null, hideT: 0, noiseT: 0, camZ: EYE.stand, hasGun: false, shells: 0 };
 function look(dx, dy, scale) {
@@ -836,6 +859,40 @@ function scatterItems() {
   items.forEach(it => { it.mesh = it.kind === 'key' ? makeKeyMesh() : makeGunMesh(); world.add(it.mesh); });
   keys.held = 0; drawKeyHud(); setExitLook();
 }
+// Noise traps: vases, plates, bottles and buckets on the floor. Walk into one and it crashes over, and he hears it.
+let traps = [];
+const TRAP_KINDS = ['vase', 'vase', 'plates', 'bottles', 'bucket'], TRAP_NAME = { vase: 'a vase', plates: 'a stack of plates', bottles: 'some bottles', bucket: 'a bucket' };
+function makeTrapMesh(kind) {
+  const g = new THREE.Group();
+  if (kind === 'vase') g.add(new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [.08, .01], [.12, .1], [.11, .22], [.05, .31], [.065, .37], [.06, .38]].map(([r, y]) => new THREE.Vector2(r, y)), 14), mat(0x3d5a8c, { shininess: 50, specular: 0x333333 })));
+  else if (kind === 'plates') for (let i = 0; i < 5; i++) cyl(g, .12, .015, (Math.random() - .5) * .015, .01 + i * .017, (Math.random() - .5) * .015, mat(0xe0dccf, { shininess: 40 }), 14);
+  else if (kind === 'bottles') [[0, 0], [.08, .03], [-.05, .07]].forEach(([a, b]) => { cyl(g, .035, .2, a, .1, b, mat(0x2f5a2a, { shininess: 70 }), 8); cyl(g, .014, .08, a, .24, b, mat(0x2f5a2a, { shininess: 70 }), 6); });
+  else { const b = new THREE.Mesh(new THREE.CylinderGeometry(.14, .11, .27, 12, 1, true), mat(0x7a7d80, { shininess: 60, side: THREE.DoubleSide })); b.position.y = .135; g.add(b); cyl(g, .11, .01, 0, .005, 0, mat(0x6a6d70), 12); }
+  return g;
+}
+function scatterTraps() {
+  traps.forEach(t => world.remove(t.mesh)); traps = [];
+  const avoid = new Set();
+  items.forEach(it => avoid.add(key3(it.f, Math.floor(it.x), Math.floor(it.y))));
+  HIDES.forEach(h => avoid.add(key3(h.f, h.sx, h.sy)));
+  STAIRS.forEach(s => { avoid.add(key3(s.from, s.E.x, s.E.y)); avoid.add(key3(s.from + 1, s.L.x, s.L.y)); });
+  const cells = [];
+  for (let f = 0; f < NF; f++) for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++)
+    if (openFloor(f, x, y) && !avoid.has(key3(f, x, y)) && !(f === START.f && Math.hypot(x + .5 - START.x, y + .5 - START.y) < 3)) cells.push({ f, x, y });
+  shuffle(cells);
+  for (const c of cells) {
+    if (traps.length >= 16) break;
+    if (traps.some(t => t.f === c.f && Math.hypot(t.cx - c.x, t.cy - c.y) < 3)) continue;
+    const kind = TRAP_KINDS[Math.floor(Math.random() * TRAP_KINDS.length)], mesh = makeTrapMesh(kind);
+    const t = { f: c.f, cx: c.x, cy: c.y, x: c.x + .3 + Math.random() * .4, y: c.y + .3 + Math.random() * .4, kind, mesh, down: false, fellAt: 0, axis: new THREE.Vector3() };
+    mesh.position.set(t.x * T, floorY(t.f), t.y * T); mesh.rotation.y = Math.random() * TAU; world.add(mesh); traps.push(t);
+  }
+}
+function knockOver(t, dx, dy) {
+  const l = Math.hypot(dx, dy) || 1; t.down = true; t.fellAt = performance.now(); t.axis.set(dy / l, 0, -dx / l);   // tips over the way you walked into it
+  sfx.crash(t.kind); makeNoise(t.f, t.x, t.y, 14);
+  say(`CRASH! You knocked over ${TRAP_NAME[t.kind]}. He definitely heard that...`, 3);
+}
 function placeDamian() {
   const field = bfs3(nodeOf(P.f, P.x, P.y)), far = [];
   let maxD = 0; for (let i = 0; i < field.dist.length; i++) maxD = Math.max(maxD, field.dist[i]);
@@ -852,7 +909,7 @@ function newLife(fresh) {
   if (fresh) { P.hasGun = false; P.shells = 0; }   // you keep the shotgun (and whatever's left in it) between lives
   DOOR_OPEN.clear();
   $('crouchBtn').classList.remove('on'); $('lightBtn').classList.remove('on');
-  scatterItems(); placeDamian(); danger = 0; updateAmmo();
+  scatterItems(); scatterTraps(); placeDamian(); danger = 0; updateAmmo();
   if (fresh) { deaths = 0; runStart = performance.now(); }
   say(fresh ? 'You woke up in his house. Find 5 keys for the front door. Stay quiet.' : 'Your keys are scattered again. He\'s waking up...', 4.5);
 }
@@ -872,7 +929,13 @@ addEventListener('keydown', e => {
   }
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
 });
-function toggleCrouch() { if (P.hidden) return; P.crouch = !P.crouch; $('crouchBtn').classList.toggle('on', P.crouch); }
+// in (or poking into) a crawl space: you can't stand up or run here
+function inCrawl(r) { for (const [ox, oy] of [[0, 0], [-r, -r], [r, -r], [-r, r], [r, r]]) if (cellM(P.f, Math.floor(P.x + ox), Math.floor(P.y + oy)) === 30) return true; return false; }
+function toggleCrouch() {
+  if (P.hidden) return;
+  if (P.crouch && inCrawl(.3)) { say('There\'s no room to stand up in here.', 1.5); return; }
+  P.crouch = !P.crouch; $('crouchBtn').classList.toggle('on', P.crouch);
+}
 function toggleLight() { P.light = !P.light; $('lightBtn').classList.toggle('on', !P.light); sfx.click(); say(P.light ? 'Flashlight on.' : 'Flashlight off. Harder for him to spot you... and harder for you to see.', 2.5); }
 function nearHide() {
   if (P.hidden) return P.hidden;
@@ -1078,7 +1141,14 @@ function hearNoises() {
 }
 
 /* ---- Damian's brain ---- */
-function setGoal(f, x, y) { const key = key3(f, Math.floor(x), Math.floor(y)); D.goal = { f, x, y }; if (key !== D.goalKey) { D.goalKey = key; D.repath = 0; } }
+function setGoal(f, x, y) {
+  if (cellM(f, Math.floor(x), Math.floor(y)) === 30) {   // you're in a crawl space: the closest he can get is the opening on his side
+    let best = null, bd = 1e9;
+    for (const [dx, dy] of DIRS) { const nx = Math.floor(x) + dx, ny = Math.floor(y) + dy; if (!passDamian(f, nx, ny)) continue; const d = Math.hypot(nx + .5 - D.x, ny + .5 - D.y) + (D.f !== f ? 50 : 0); if (d < bd) { bd = d; best = { x: nx + .5, y: ny + .5 }; } }
+    if (best) { x = best.x; y = best.y; }
+  }
+  const key = key3(f, Math.floor(x), Math.floor(y)); D.goal = { f, x, y }; if (key !== D.goalKey) { D.goalKey = key; D.repath = 0; }
+}
 function randomCell(f, cx, cy, maxR) {
   for (let i = 0; i < 80; i++) {
     const x = Math.floor(cx + (Math.random() * 2 - 1) * maxR), y = Math.floor(cy + (Math.random() * 2 - 1) * maxR);
@@ -1191,12 +1261,13 @@ function update(dt, now) {
   P.a += ((held.ArrowRight ? 1 : 0) - (held.ArrowLeft || held.KeyQ ? 1 : 0)) * 2.6 * dt;
   const moving = Math.hypot(f, s) > .08;
   const wantRun = (held.ShiftLeft || held.ShiftRight || input.touchRun) && moving;
-  if (wantRun && P.crouch) { P.crouch = false; $('crouchBtn').classList.remove('on'); }
-  const running = wantRun && !P.tired && P.stamina > 0;
+  const crawling = inCrawl(.24);
+  if (wantRun && P.crouch && !crawling) { P.crouch = false; $('crouchBtn').classList.remove('on'); }
+  const running = wantRun && !P.crouch && !P.tired && P.stamina > 0;
   P.stamina = clamp(P.stamina + (running ? -24 : 15) * dt, 0, 100);
   if (P.stamina <= 0) P.tired = true; if (P.tired && P.stamina > 30) P.tired = false;
-  const speed = (running ? CONFIG.runSpeed : P.crouch ? CONFIG.crouchSpeed : CONFIG.walkSpeed) * (P.st ? .8 : 1), len = Math.max(1, Math.hypot(f, s));
-  const eye = P.hidden ? EYE[P.hidden.kind] : P.crouch ? EYE.crouch : EYE.stand;
+  const speed = (running ? CONFIG.runSpeed : P.crouch ? CONFIG.crouchSpeed : CONFIG.walkSpeed) * (P.st ? .8 : crawling ? .75 : 1), len = Math.max(1, Math.hypot(f, s));
+  const eye = P.hidden ? EYE[P.hidden.kind] : crawling ? EYE.crawl : P.crouch ? EYE.crouch : EYE.stand;
   P.camZ += (eye - P.camZ) * Math.min(1, dt * 10);
   const dX = Math.cos(P.a), dY = Math.sin(P.a);
   const bx = P.x, by = P.y;
@@ -1208,6 +1279,7 @@ function update(dt, now) {
   }
   if (hiding) { P.hideT += dt; if ((P.stepT -= dt) <= 0) { sfx.breath(); P.stepT = 2.8; } }
   if (!P.st && P.f !== shownFloor) { shownFloor = P.f; say(FL[P.f].name, 1.6); }
+  for (const t of traps) if (!t.down && t.f === P.f && !P.st && !hiding && Math.hypot(t.x - P.x, t.y - P.y) < .4) knockOver(t, P.x - bx || Math.cos(P.a), P.y - by || Math.sin(P.a));
 
   // picking things up
   for (let i = items.length - 1; i >= 0; i--) {
@@ -1237,11 +1309,14 @@ function update(dt, now) {
   }
 
   // Damian
-  const awake = now >= D.awakeAt;
+  const awake = now >= D.awakeAt, dpx = D.x, dpy = D.y, dpf = D.f;
   if (awake) { hearNoises(); thinkDamian(dt, now); } else noises.length = 0;
+  const moved = D.f === dpf ? Math.hypot(D.x - dpx, D.y - dpy) : 0;
+  if (DM) DM.walk += moved; D.stepAcc = (D.stepAcc || 0) + moved;
   const same = D.f === P.f, straight = same ? Math.hypot(D.x - P.x, D.y - P.y) : 99;
   const out = D.mode === 'stunned';
-  if (awake && !out && same && !P.hidden && straight < .55) return caught();
+  const safeInCrawl = cellM(P.f, Math.floor(P.x), Math.floor(P.y)) === 30;   // he can't reach you inside a crawl space
+  if (awake && !out && same && !P.hidden && !safeInCrawl && straight < .55) return caught();
   if (awake && !out && P.hidden && D.knowsHide === P.hidden && D.f === P.hidden.f && Math.hypot(D.x - (P.hidden.sx + .5), D.y - (P.hidden.sy + .5)) < .8) return caught();
   const prox = awake && !out ? clamp(1 - (straight - 1) / 12, 0, 1) : 0;
   const target = D.mode === 'chase' ? Math.max(prox, .4) : D.mode === 'check' ? Math.max(prox, .3) : D.mode === 'patrol' ? prox * .45 : prox * .65;
@@ -1252,7 +1327,12 @@ function update(dt, now) {
     heartT -= dt; if (danger > .05 && heartT <= 0) { sfx.heart(.2 + danger * .5); heartT = 1.15 - danger * .8; }
     const rel = Math.atan2(D.y - P.y, D.x - P.x) - P.a, pan = same ? Math.sin(rel) : 0;
     // his footsteps: clear on your floor, a muffled thump through the floorboards on another
-    if (awake && !out && (D.footT -= dt) <= 0) { sfx.dstep(same ? .55 / (1 + straight * .4) : .06, pan); D.footT = D.mode === 'chase' ? .3 : .55; }
+    if (D.stepAcc > .6) {   // one footstep for every stride
+      D.stepAcc = 0;
+      const floors = Math.abs(D.f - P.f);
+      if (floors === 0) sfx.dstep(.85 / (1 + straight * .3), pan, false);
+      else if (floors === 1) sfx.dstep(.22 / (1 + Math.hypot(D.x - P.x, D.y - P.y) * .15), pan * .5, true);
+    }
     D.voiceT -= dt;
     if (awake && !out && same && D.mode !== 'patrol' && D.voiceT <= 0 && straight < 15) {
       // While chasing he yells "Get over here!"; while hunting around he sniffs "I can smell you!". Sometimes just his old voice.
@@ -1285,9 +1365,11 @@ function updateStatus(now) {
   if (P.hidden) label = 'E: get out';
   else if (door) label = isDoorOpen(P.f, door.x, door.y) ? 'E: close the door' : 'E: open the door';
   else if (h) label = h.kind === 'bed' ? 'E: hide under the bed' : 'E: hide in the wardrobe';
+  const usable = !!label;
+  if (!label && !P.crouch && !P.st && cellM(P.f, Math.floor(P.x + Math.cos(P.a) * .75), Math.floor(P.y + Math.sin(P.a) * .75)) === 30) label = isTouch ? 'Tap CROUCH to crawl through' : 'C: crouch to crawl through';
   const pr = $('prompt'), hb = $('hideBtn');
-  pr.style.display = label && !isTouch ? 'block' : 'none'; if (pr.textContent !== label) pr.textContent = label;
-  hb.style.display = label ? 'block' : 'none'; hb.textContent = P.hidden ? 'LEAVE' : door ? 'DOOR' : 'HIDE';
+  pr.style.display = label && (!isTouch || !usable) ? 'block' : 'none'; if (pr.textContent !== label) pr.textContent = label;
+  hb.style.display = usable ? 'block' : 'none'; hb.textContent = P.hidden ? 'LEAVE' : door ? 'DOOR' : 'HIDE';
   $('crouchTag').style.display = P.crouch ? 'block' : 'none';
   $('crosshair').style.display = P.hasGun && P.shells > 0 && !P.hidden ? 'block' : 'none';
   const ft = '📍 ' + FL[P.f].name + (P.st ? ' (stairs)' : ''); if ($('floorTag').textContent !== ft) $('floorTag').textContent = ft;
@@ -1358,6 +1440,17 @@ function buildShell() {
           const nm = cellM(f, x + dx, y + dy); if (!inB(x + dx, y + dy) || nm === 1 || nm === 9) continue;
           wallFace(B, m === 9 ? EXIT_MAT : wallMat(f, x, y, x + dx, y + dy), x, y, dx, dy, base, base + CH);
           if (cellM(f + 1, x + dx, y + dy) === 21) wallFace(B, slab, x, y, dx, dy, base + CH, base + FH);   // the floor's edge, seen from the stairwell
+        }
+        continue;
+      }
+      if (m === 30) {   // a crawl space: a low tunnel through the wall with a wooden frame around each end
+        floorQuad(B, floorMat(f, x, y), x, y, base); ceilQuad(B, mat(TEX.woodDark), x, y, base + CRAWL_H);
+        for (const [dx, dy] of DIRS) {
+          const nm = cellM(f, x + dx, y + dy); if (!inB(x + dx, y + dy) || nm === 1 || nm === 9 || nm === 30) continue;
+          wallFace(B, wallMat(f, x, y, x + dx, y + dy), x, y, dx, dy, base + CRAWL_H, base + CH);
+          const cx = (x + .5 + dx * .5) * T, cz = (y + .5 + dy * .5) * T, along = dy !== 0, fr = mat(TEX.woodDark);
+          box(STATIC, along ? T : .07, .07, along ? .07 : T, cx, base + CRAWL_H, cz, fr);
+          [-1, 1].forEach(s => box(STATIC, .07, CRAWL_H, .07, cx + (along ? s * (T / 2 - .035) : 0), base + CRAWL_H / 2, cz + (along ? 0 : s * (T / 2 - .035)), fr));
         }
         continue;
       }
@@ -1596,20 +1689,70 @@ function buildLamps() {
   });
   for (let i = 0; i < 8; i++) { const l = new THREE.PointLight(0xffbe78, 0, 7.5, 2); world.add(l); LIGHT_POOL.push(l); }
 }
-/* ---- Damian: a flat cut-out of his face that always turns to look at you ---- */
-let dGroup = null, dFace = null, dEyes = null, dSleep = null;
+/* ---- Damian: a hunched old granny in a nightgown, slippers and a shawl, carrying a bat... with Damian's face ---- */
+let DM = null;   // his body parts, for animating
+function limb(parent, x, y, z, upperLen, lowerLen, upperMat, lowerMat, r) {   // a shoulder/hip joint with an elbow/knee
+  const top = new THREE.Group(); top.position.set(x, y, z); parent.add(top);
+  cyl(top, r, upperLen, 0, -upperLen / 2, 0, upperMat, 8);
+  const mid = new THREE.Group(); mid.position.y = -upperLen; top.add(mid);
+  cyl(mid, r * .85, lowerLen, 0, -lowerLen / 2, 0, lowerMat, 8);
+  return { top, mid };
+}
 function buildDamian() {
-  dGroup = new THREE.Group();
-  dFace = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.15), new THREE.MeshPhongMaterial({ transparent: true, alphaTest: .3, side: THREE.DoubleSide, shininess: 0 }));
-  dEyes = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.15), new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  dEyes.position.z = .01; dGroup.add(dFace, dEyes); world.add(dGroup);
-  dSleep = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshPhongMaterial({ transparent: true, alphaTest: .3, shininess: 0 }));
-  dSleep.rotation.x = -Math.PI / 2; world.add(dSleep);
+  const skin = mat(0xd9b49a), dress = mat(TEX.dress), knit = mat(TEX.knit), hair = mat(0xbab6ae), slipper = mat(0x5a4a7a), wood = mat(TEX.wood);
+  const g = new THREE.Group(), body = new THREE.Group(); g.add(body); world.add(g);
+  // legs in slippers, under the nightgown
+  const legs = [-1, 1].map(s => { const L = limb(body, s * .09, .52, 0, .26, .24, skin, skin, .045); box(L.mid, .1, .06, .22, 0, -.25, .05, slipper); return L; });
+  const skirt = new THREE.Mesh(new THREE.LatheGeometry([[.33, 0], [.31, .16], [.27, .36], [.22, .56], [.19, .64]].map(([r, y]) => new THREE.Vector2(r, y)), 16), dress);
+  skirt.position.y = .3; body.add(skirt);
+  // hunched-over upper body
+  const torso = new THREE.Group(); torso.position.y = .92; torso.rotation.x = .42; body.add(torso);
+  torso.add(new THREE.Mesh(new THREE.LatheGeometry([[.19, 0], [.21, .12], [.2, .28], [.15, .38], [.06, .44]].map(([r, y]) => new THREE.Vector2(r, y)), 16), dress));
+  const shawl = new THREE.Mesh(new THREE.SphereGeometry(.26, 12, 8), knit); shawl.scale.set(1, .45, .85); shawl.position.y = .34; torso.add(shawl);
+  // long thin arms; she carries a wooden bat in her right hand
+  const arms = [-1, 1].map(s => {
+    const A = limb(torso, s * .22, .33, 0, .3, .27, dress, skin, .042);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(.048, 8, 6), skin); hand.position.y = -.29; A.mid.add(hand);
+    return A;
+  });
+  const bat = cyl(arms[1].mid, .035, .78, 0, -.62, .05, wood, 8); bat.geometry = new THREE.CylinderGeometry(.04, .02, .78, 8);
+  // her head: grey hair in a bun, and Damian's face
+  cyl(torso, .05, .1, 0, .47, .02, skin, 8);
+  const head = new THREE.Group(); head.position.set(0, .56, .03); head.rotation.x = -.42; head.scale.setScalar(1.6); torso.add(head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(.15, 16, 12), skin); skull.scale.set(1, 1.1, 1); head.add(skull);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(.158, 16, 10, 0, TAU, 0, .95), hair); cap.scale.set(1, 1.1, 1); head.add(cap);
+  const back = new THREE.Mesh(new THREE.SphereGeometry(.156, 16, 10, Math.PI, Math.PI, 0, 2.1), hair); back.scale.set(1, 1.1, 1); head.add(back);
+  const bun = new THREE.Mesh(new THREE.SphereGeometry(.075, 10, 8), hair); bun.position.set(0, .11, -.13); head.add(bun);
+  const faceGeo = r => new THREE.SphereGeometry(r, 18, 14, Math.PI / 2 - .9, 1.8, .5, 1.85);
+  const face = new THREE.Mesh(faceGeo(.163), new THREE.MeshPhongMaterial({ transparent: true, alphaTest: .3, shininess: 4 })); face.scale.set(1, 1.1, 1); head.add(face);
+  const eyes = new THREE.Mesh(faceGeo(.166), new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); eyes.scale.set(1, 1.1, 1); head.add(eyes);
+  DM = { g, body, legs, arms, torso, head, face, eyes, fall: 0, walk: 0 };
 }
 function setDamianHead(i) {
-  const h = HEADS[i]; if (!h || !dFace) return;
-  dFace.material.map = h.tex; dEyes.material.map = h.eyeTex; dSleep.material.map = h.sleepTex;
-  [dFace, dEyes, dSleep].forEach(m => m.material.needsUpdate = true);
+  const h = HEADS[i]; if (!h || !DM) return;
+  DM.face.material.map = h.tex; DM.eyes.material.map = h.eyeTex;
+  DM.face.material.needsUpdate = DM.eyes.material.needsUpdate = true;
+}
+function animateDamian(t, dt, show) {
+  const g = DM.g; g.visible = show; if (!show) return;
+  const stunned = D.mode === 'stunned', x = D.x * T, z = D.y * T;
+  g.position.set(x, groundAt(D.f, D.x, D.y), z); g.rotation.y = Math.PI / 2 - D.heading;
+  DM.fall += ((stunned ? 1 : 0) - DM.fall) * Math.min(1, dt * 6);   // knocked out: she falls flat on her back
+  DM.body.rotation.x = -DM.fall * Math.PI / 2; DM.body.position.y = DM.fall * .18;
+  const ph = DM.walk * 5.2, chase = D.mode === 'chase' ? 1 : 0, sw = stunned ? 0 : .55;
+  DM.legs.forEach((L, i) => { const s = Math.sin(ph + i * Math.PI) * sw; L.top.rotation.x = s; L.mid.rotation.x = Math.max(0, -s) * .9; });
+  DM.arms.forEach((A, i) => {
+    const s = Math.sin(ph + (1 - i) * Math.PI) * sw * .7;
+    A.top.rotation.x = s - chase * (i === 1 ? 1.6 : .9) + (stunned ? -2.6 : 0);   // arms reach out for you when she's chasing, bat raised
+    A.mid.rotation.x = -.35 - chase * .3; A.top.rotation.z = (i ? -1 : 1) * (.12 + chase * .1);
+  });
+  if (!stunned) DM.body.position.y = Math.abs(Math.cos(ph)) * .035 * (sw ? 1 : 0);
+  // she turns her head to stare at you when she knows where you are
+  let look = 0;
+  if (!stunned && D.f === P.f && (D.mode === 'chase' || D.mode === 'check')) { look = Math.atan2(P.y - D.y, P.x - D.x) - D.heading; look = Math.atan2(Math.sin(look), Math.cos(look)); }
+  DM.head.rotation.y += (-clamp(look, -1.2, 1.2) - DM.head.rotation.y) * Math.min(1, dt * 8);
+  DM.head.rotation.z = Math.sin(t * 1.7) * .08 + (danger > .5 ? (Math.random() - .5) * .08 : 0);
+  DM.eyes.visible = !stunned;
 }
 function photoTex(canvas) { const t = new THREE.CanvasTexture(canvas); t.minFilter = THREE.LinearFilter; return t; }
 /* ---- keys and the shotgun lying around ---- */
@@ -1679,16 +1822,13 @@ function renderFrame(now, dt) {
   const kick = Math.max(0, 1 - (now - gunKickAt) / 120);
   gunLight.intensity = kick * 3; gunLight.position.set(camera.position.x + _fwd.x * .6, camera.position.y, camera.position.z + _fwd.z * .6);
   // Damian
-  const showD = state === 'play' || state === 'paused';
-  if (dGroup) {
-    const stunned = D.mode === 'stunned', g = groundAt(D.f, D.x, D.y), x = D.x * T, z = D.y * T;
-    dGroup.visible = showD && !stunned; dSleep.visible = showD && stunned;
-    if (!stunned) {
-      const sh = danger > .5 ? (Math.random() - .5) * .06 : 0;
-      dGroup.position.set(x + sh, g + 1.42 + Math.sin(t * 3) * .05, z + sh);
-      dGroup.rotation.y = Math.atan2(camera.position.x - x, camera.position.z - z);
-    } else dSleep.position.set(x, g + .05, z);
-  }
+  if (DM) animateDamian(t, dt, state === 'play' || state === 'paused');
+  // knocked-over vases, plates, bottles and buckets tip onto their side
+  traps.forEach(tr => {
+    if (!tr.down) return;
+    const k = clamp((now - tr.fellAt) / 320, 0, 1), e = k * k, ang = e * (tr.kind === 'plates' ? 1.2 : 1.5);
+    tr.mesh.quaternion.setFromAxisAngle(tr.axis, ang); tr.mesh.position.y = floorY(tr.f) + Math.sin(ang) * (tr.kind === 'bucket' ? .13 : .06);
+  });
   // keys and the shotgun float and spin so you can spot them
   items.forEach(it => {
     it.mesh.position.set(it.x * T, groundAt(it.f, it.x, it.y) + .55 + Math.sin(t * 2.5 + it.phase) * .06, it.y * T);
@@ -1774,7 +1914,7 @@ function buildMini() {
     const c = mk(MW * 5, MH * 5), x = c.getContext('2d');
     for (let y = 0; y < MH; y++) for (let xx = 0; xx < MW; xx++) {
       const m = F.M[y][xx], p = propAt(f, xx, y);
-      x.fillStyle = m === 20 ? '#2a5a9a' : m === 21 ? '#18304e' : p ? (p.type === 'wardrobe' || p.type === 'bed' ? '#2e4a2e' : '#3a2f22') : m === 0 ? '#1a1a1a' : m === 9 ? '#a22' : m === 10 ? '#6a4a2a' : '#555';
+      x.fillStyle = m === 20 ? '#2a5a9a' : m === 21 ? '#18304e' : m === 30 ? '#9a7a3a' : p ? (p.type === 'wardrobe' || p.type === 'bed' ? '#2e4a2e' : '#3a2f22') : m === 0 ? '#1a1a1a' : m === 9 ? '#a22' : m === 10 ? '#6a4a2a' : '#555';
       x.fillRect(xx * 5, y * 5, 5, 5);
     }
     MINI.push(c);
@@ -1898,7 +2038,7 @@ function frame(now) {
   headIndex = 0; setDamianHead(0);
   const tf = $('titleFace').getContext('2d'); tf.drawImage(HEADS[0].canvas, 0, 0, 300, 300);
   tf.save(); tf.scale(300 / HEADS[0].canvas.width, 300 / HEADS[0].canvas.width); glowEyes(tf, HEADS[0], 1, 1); tf.restore();
-  scatterItems(); D.f = 0; D.x = 10.5; D.y = 8.5;
+  scatterItems(); scatterTraps(); D.f = 0; D.x = 10.5; D.y = 8.5;
   const vols = document.querySelectorAll('.volSlider'), senses = document.querySelectorAll('.sensSlider');
   vols.forEach(v => { v.value = Math.round(volume * 100); v.oninput = () => { setVolume(v.value / 100); vols.forEach(o => o.value = v.value); }; });
   senses.forEach(v => { v.value = Math.round(lookSpeed * 100); v.oninput = () => { setLookSpeed(v.value / 100); senses.forEach(o => o.value = v.value); }; });
